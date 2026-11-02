@@ -1,5 +1,7 @@
 import io
 import json
+import socket
+from unittest.mock import patch
 from pathlib import Path
 import sys
 import tempfile
@@ -12,7 +14,7 @@ from http.server import ThreadingHTTPServer
 from PIL import Image, ImageDraw
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'backend'))
-from server import Closet, extract, make_handler, normalized_box, prepare_image
+from server import Closet, detect, extract, make_handler, normalized_box, prepare_image
 
 
 def outfit_bytes():
@@ -102,6 +104,11 @@ class PipelineTests(unittest.TestCase):
         self.closet.review(original['id'],{'state':'approved'})
         self.closet.review(newest['id'],{'state':'duplicate'})
         self.assertEqual(self.closet.snapshot()['garments'][0]['state'],'duplicate')
+
+    def test_provider_timeout_explains_photo_is_saved(self):
+        with patch('urllib.request.urlopen', side_effect=socket.timeout()):
+            with self.assertRaisesRegex(RuntimeError, 'La foto sigue guardada'):
+                detect(outfit_bytes(), 'test-only', 'test-model')
 
     def test_input_validation(self):
         for box in [[1,1,1,1],[float('nan'),0,900,900],['0',0,900,900],None]:

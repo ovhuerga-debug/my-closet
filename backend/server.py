@@ -9,6 +9,7 @@ import math
 import os
 from pathlib import Path
 import secrets
+import socket
 import sqlite3
 import threading
 import time
@@ -117,7 +118,9 @@ def detect(image_bytes, key, model):
         messages = {401: 'La clave del servidor no es válida.', 403: 'El proyecto no tiene acceso al modelo.',
                     429: 'Cuota o límite de solicitudes alcanzado. Revisa saldo y límites antes de reintentar.'}
         raise RuntimeError(messages.get(e.code, 'El proveedor de IA devolvió un error. Reintenta más tarde.')) from None
-    except (urllib.error.URLError, TimeoutError):
+    except (socket.timeout, TimeoutError):
+        raise RuntimeError('Tiempo de espera agotado al analizar con OpenAI. La foto sigue guardada. Puedes recortarla manualmente o reintentar; no se repite el envío automáticamente.') from None
+    except urllib.error.URLError:
         raise RuntimeError('No se pudo contactar con la IA. El resultado del cobro puede ser incierto; no se reintenta automáticamente.') from None
     if result.get('status') != 'completed':
         raise RuntimeError('El análisis no se completó. Reduce la imagen o reintenta explícitamente.')
