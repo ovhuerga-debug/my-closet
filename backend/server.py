@@ -23,6 +23,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import cv2
 import numpy as np
 from PIL import Image, ImageOps, UnidentifiedImageError
+from pillow_heif import register_heif_opener
+
+register_heif_opener(thumbnails=False)
 
 ROOT = Path(__file__).resolve().parent.parent
 CATEGORIES = ['parte superior', 'pantalón', 'falda', 'vestido', 'abrigo', 'calzado', 'accesorio']
@@ -44,8 +47,8 @@ def normalized_box(box):
 def prepare_image(raw):
     try:
         with Image.open(io.BytesIO(raw)) as im:
-            if im.format not in ('JPEG', 'PNG', 'WEBP'):
-                raise ValueError('Usa JPEG, PNG o WebP. Convierte HEIC primero.')
+            if im.format not in ('JPEG', 'PNG', 'WEBP', 'HEIF'):
+                raise ValueError('Usa HEIC, HEIF, JPEG, PNG o WebP.')
             im = ImageOps.exif_transpose(im).convert('RGB')
             im.thumbnail((1600, 1600))
             if min(im.size) < 32:

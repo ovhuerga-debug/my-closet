@@ -132,7 +132,7 @@ $('files').addEventListener('change',async()=>{
     $('uploadStatus').textContent=`Subiendo ${i+1}/${files.length}: ${file.name}`;
     try{
       if(file.size>15*1024*1024) throw new Error('Supera 15 MB.');
-      if(!['image/jpeg','image/png','image/webp'].includes(file.type)) throw new Error('Formato no admitido; convierte HEIC a JPEG.');
+      if(!['image/jpeg','image/png','image/webp','image/heic','image/heif','image/heic-sequence','image/heif-sequence'].includes(file.type) && !/\.(heic|heif|jpe?g|png|webp)$/i.test(file.name)) throw new Error('Formato no admitido. Usa HEIC, HEIF, JPEG, PNG o WebP.');
       const result=await (await api('/api/photos?name='+encodeURIComponent(file.name),{method:'POST',headers:{'Content-Type':file.type},body:file})).json();
       if(result.duplicate) duplicates++; else uploaded++;
     }catch(error){failed++;const li=document.createElement('li');li.textContent=file.name+': '+error.message;$('uploadErrors').append(li);}

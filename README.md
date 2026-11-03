@@ -16,7 +16,7 @@ La clave se configura **solo en el servidor**, en un archivo `.env.local` ignora
 
 Abre la dirección privada que muestra el servidor. Incluye un código de acceso temporal en el fragmento `#token=…`, que la web elimina de la barra de dirección al abrirse. No compartas esa dirección: da acceso a fotos y catálogo mientras ese servidor siga abierto. El código es diferente de la clave de OpenAI.
 
-1. Marca la autorización de envío y selecciona hasta 200 JPEG/PNG/WebP (15 MB por archivo). Convierte HEIC antes.
+1. Marca la autorización de envío y selecciona hasta 200 HEIC/HEIF/JPEG/PNG/WebP (15 MB por archivo). HEIC y HEIF se convierten automáticamente a JPEG en el servidor privado, sin servicio externo de conversión. Solo se conserva la imagen principal, sin vídeo Live Photo, profundidad ni HDR; el original de tu dispositivo no se modifica.
 2. Espera a que acabe la subida; se muestran errores por archivo y duplicados omitidos. La cola permanece pausada hasta que pulses **Iniciar / continuar análisis**.
 3. En **Por revisar**, compara original, recorte y fondo eliminado; corrige nombre, categoría y color. Aprueba o descarta cada propuesta. Para repetir un recorte, usa **Ver original / recortar**, crea la nueva propuesta y descarta la anterior.
 4. Los posibles duplicados muestran ambas imágenes. Aprueba primero la prenda de referencia y marca después **Es la misma prenda**. Puedes aprobar ambas si son distintas.

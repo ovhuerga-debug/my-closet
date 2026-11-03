@@ -1,4 +1,5 @@
 import io
+import base64
 import json
 import socket
 from unittest.mock import patch
@@ -109,6 +110,18 @@ class PipelineTests(unittest.TestCase):
         with patch('urllib.request.urlopen', side_effect=socket.timeout()):
             with self.assertRaisesRegex(RuntimeError, 'La foto sigue guardada'):
                 detect(outfit_bytes(), 'test-only', 'test-model')
+
+    def test_heic_upload_converts_to_jpeg_without_exif(self):
+        raw=base64.b64decode((Path(__file__).parent/'fixtures/outfit.heic.b64').read_text())
+        converted=prepare_image(raw)
+        with Image.open(io.BytesIO(converted)) as image:
+            self.assertEqual(image.format,'JPEG')
+            self.assertEqual(image.size,(400,600))
+            self.assertFalse(image.getexif())
+        upload=self.closet.upload(raw,'outfit.HEIC')
+        self.assertTrue((self.closet.media/(upload['id']+'.jpg')).is_file())
+        self.assertEqual(self.closet.snapshot()['photos'][0]['state'],'queued')
+        self.assertTrue(self.closet.upload(raw,'same.heif')['duplicate'])
 
     def test_input_validation(self):
         for box in [[1,1,1,1],[float('nan'),0,900,900],['0',0,900,900],None]:

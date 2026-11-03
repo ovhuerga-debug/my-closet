@@ -1,4 +1,4 @@
-const CACHE = 'mycloset-shell-v2';
+const CACHE = 'mycloset-shell-v3';
 const ASSETS = ['./','./index.html','./batch.html','./batch.js','./batch.css','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));
