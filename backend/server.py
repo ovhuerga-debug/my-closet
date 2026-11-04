@@ -10,6 +10,8 @@ import os
 from pathlib import Path
 import secrets
 import socket
+import subprocess
+import tempfile
 import sqlite3
 import threading
 import time
@@ -21,6 +23,7 @@ import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import cv2
+from clothing import clothing_labels, garment_mask, masked_extract
 import numpy as np
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pillow_heif import register_heif_opener
@@ -100,6 +103,33 @@ def extract(image, box):
     return crop_bytes.getvalue(), cutout, dhash(crop)
 
 
+def open_response(request, timeout=100):
+    # curl uses the system TLS/network stack. Secrets travel through stdin only.
+    with tempfile.NamedTemporaryFile(suffix='.json') as payload:
+        payload.write(request.data)
+        payload.flush()
+        config = ('url = "https://api.openai.com/v1/responses"\n'
+                  + 'header = ' + json.dumps('Authorization: ' + request.get_header('Authorization')) + '\n'
+                  + 'header = "Content-Type: application/json"\n'
+                  + 'data-binary = "@' + payload.name + '"\n')
+        try:
+            result = subprocess.run(['curl', '--config', '-', '--silent', '--show-error', '--connect-timeout', '15',
+                                     '--max-time', str(timeout), '--write-out', '\n%{http_code}'],
+                                    input=config, capture_output=True, text=True, timeout=timeout + 5)
+        except (OSError, subprocess.TimeoutExpired):
+            raise RuntimeError('No se pudo contactar con OpenAI. La foto sigue guardada.') from None
+    if result.returncode:
+        raise RuntimeError('No se pudo contactar con OpenAI. La foto sigue guardada; no se reintenta automáticamente.')
+    try:
+        body, status = result.stdout.rsplit('\n', 1)
+        status = int(status)
+    except ValueError:
+        raise RuntimeError('Respuesta de red no válida de OpenAI.') from None
+    if status != 200:
+        raise urllib.error.HTTPError(request.full_url, status, 'Provider error', {}, io.BytesIO(body.encode()))
+    return io.BytesIO(body.encode())
+
+
 def detect(image_bytes, key, model):
     garment = {'type': 'object', 'additionalProperties': False, 'required': ['name', 'category', 'color', 'confidence', 'bbox'],
                'properties': {'name': {'type': 'string'}, 'category': {'type': 'string', 'enum': CATEGORIES},
@@ -115,9 +145,15 @@ def detect(image_bytes, key, model):
     request = urllib.request.Request('https://api.openai.com/v1/responses', data=json.dumps(payload).encode(),
                                      headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'})
     try:
-        with urllib.request.urlopen(request, timeout=100) as response:
+        with open_response(request, timeout=100) as response:
             result = json.load(response)
     except urllib.error.HTTPError as e:
+        try:
+            code = json.loads(e.read()).get('error', {}).get('code')
+        except (ValueError, AttributeError):
+            code = None
+        if code in ('credit_balance_exhausted', 'insufficient_quota'):
+            raise RuntimeError('Saldo o cuota de OpenAI agotados. Añade saldo al proyecto para analizar. La foto sigue guardada.') from None
         messages = {401: 'La clave del servidor no es válida.', 403: 'El proyecto no tiene acceso al modelo.',
                     429: 'Cuota o límite de solicitudes alcanzado. Revisa saldo y límites antes de reintentar.'}
         raise RuntimeError(messages.get(e.code, 'El proveedor de IA devolvió un error. Reintenta más tarde.')) from None
@@ -160,6 +196,10 @@ class Closet:
               CREATE TABLE IF NOT EXISTS calls(id TEXT PRIMARY KEY, day TEXT, usage TEXT);
               INSERT OR IGNORE INTO settings VALUES('paused','1');
             ''')
+            columns={r[1] for r in db.execute('PRAGMA table_info(garments)')}
+            for column in ('method','warning'):
+                if column not in columns:
+                    db.execute('ALTER TABLE garments ADD COLUMN '+column+" TEXT DEFAULT ''")
             db.execute("UPDATE photos SET state='error',error='El servidor se reinició durante el análisis. Revisa y reintenta si procede.' WHERE state='processing'")
         os.chmod(self.path, 0o600)
 
@@ -195,8 +235,23 @@ class Closet:
             if not db.execute('SELECT id FROM photos WHERE id=?', (photo_id,)).fetchone():
                 raise ValueError('Foto no encontrada.')
             with Image.open(self.media / (photo_id + '.jpg')) as image:
+                labels=clothing_labels(image) if any(i.get('confidence',0)>0 for i in items) else None
                 for item in items:
-                    crop, cutout, phash = extract(image, item['bbox'])
+                    mask,warning=garment_mask(image,labels,item,items)
+                    method='grabcut'
+                    if mask is not None:
+                        crop_image,cutout_image,box=masked_extract(image,mask)
+                        item['bbox']=box
+                        a,b=io.BytesIO(),io.BytesIO()
+                        crop_image.save(a,'PNG');cutout_image.save(b,'PNG')
+                        crop,cutout,phash=a.getvalue(),b.getvalue(),dhash(crop_image)
+                        method='clothing-model'
+                    else:
+                        crop, cutout, phash = extract(image, item['bbox'])
+                        if labels is not None:
+                            cutout=None
+                            method='unresolved'
+
                     gid = uuid.uuid4().hex
                     (self.media / (gid + '-crop.png')).write_bytes(crop)
                     if cutout:
@@ -204,7 +259,7 @@ class Closet:
                     candidates = db.execute("SELECT id,phash FROM garments WHERE category=? AND lower(color)=lower(?) AND state IN ('review','approved')", (item['category'], item['color'])).fetchall()
                     ranked = sorted((sum(a != b for a, b in zip(phash, c['phash'])), c['id']) for c in candidates)
                     duplicate = ranked[0][1] if ranked and ranked[0][0] <= 7 else None
-                    db.execute('INSERT INTO garments VALUES(?,?,?,?,?,?,?,?,?,?,?)', (gid, photo_id, item['name'][:150], item['category'], item['color'][:60], item['confidence'], json.dumps(item['bbox']), 'review', bool(cutout), phash, duplicate))
+                    db.execute('INSERT INTO garments(id,photo_id,name,category,color,confidence,bbox,state,cutout,phash,duplicate_of,method,warning) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)', (gid, photo_id, item['name'][:150], item['category'], item['color'][:60], item['confidence'], json.dumps(item['bbox']), 'review', bool(cutout), phash, duplicate, method, warning))
             db.execute("UPDATE photos SET state='review',error=? WHERE id=?", ('' if items else 'No se detectaron prendas. Puedes añadir un recorte manual.', photo_id))
 
     def snapshot(self):

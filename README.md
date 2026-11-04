@@ -72,3 +72,9 @@ node --check batch.js
 ```
 
 Las pruebas no llaman a OpenAI ni gastan saldo. Verifican máscara real, cola, aprobación, errores sin reintentos, límite diario, duplicados, persistencia, copia, borrado, autorización, CORS y bloqueo de archivos privados.
+
+## Corrección de la separación de prendas — 4 de noviembre
+
+La detección con OpenAI sirve para proponer nombres/categorías, pero sus coordenadas no fueron suficientemente precisas en la muestra real. No se consideran un aislamiento fiable. Se añade un modelo local SegFormer para localizar píxeles de ropa y excluir piel/fondo. Instalar con `.venv/bin/python backend/setup_clothing.py`; hace falta `curl` para las solicitudes a OpenAI, usando la conexión del sistema y enviando la clave únicamente por entrada estándar.
+
+Con los pesos instalados, las regiones provienen de máscaras de ropa; las prendas superpuestas de colores claro/oscuro se separan de forma aproximada y se marcan como parciales. Las capas ambiguas requieren otra foto o corrección manual. Sin los pesos se conserva el método anterior como máscara provisional. No se promete resultado perfecto ni reconstrucción de zonas ocultas. Ver THIRD_PARTY.md para fuente y condiciones del modelo.

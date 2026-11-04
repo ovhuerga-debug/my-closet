@@ -3,6 +3,7 @@ import base64
 import json
 import socket
 from unittest.mock import patch
+from types import SimpleNamespace
 from pathlib import Path
 import sys
 import tempfile
@@ -15,7 +16,7 @@ from http.server import ThreadingHTTPServer
 from PIL import Image, ImageDraw
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'backend'))
-from server import Closet, detect, extract, make_handler, normalized_box, prepare_image
+from server import Closet, detect, extract, make_handler, normalized_box, prepare_image, open_response
 
 
 def outfit_bytes():
@@ -107,7 +108,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(self.closet.snapshot()['garments'][0]['state'],'duplicate')
 
     def test_provider_timeout_explains_photo_is_saved(self):
-        with patch('urllib.request.urlopen', side_effect=socket.timeout()):
+        with patch('server.open_response', side_effect=socket.timeout()):
             with self.assertRaisesRegex(RuntimeError, 'La foto sigue guardada'):
                 detect(outfit_bytes(), 'test-only', 'test-model')
 
@@ -122,6 +123,22 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue((self.closet.media/(upload['id']+'.jpg')).is_file())
         self.assertEqual(self.closet.snapshot()['photos'][0]['state'],'queued')
         self.assertTrue(self.closet.upload(raw,'same.heif')['duplicate'])
+
+    def test_exhausted_credit_has_clear_message(self):
+        error=urllib.error.HTTPError('https://api.openai.com/v1/responses',429,'quota',{},io.BytesIO(b'{"error":{"code":"credit_balance_exhausted"}}'))
+        with patch('server.open_response',side_effect=error):
+            with self.assertRaisesRegex(RuntimeError,'Saldo o cuota de OpenAI agotados'):
+                detect(outfit_bytes(),'test-only','test-model')
+
+    def test_system_transport_keeps_key_out_of_command_arguments(self):
+        request=urllib.request.Request('https://api.openai.com/v1/responses',data=b'{}',headers={'Authorization':'Bearer test-private-value'})
+        with patch('subprocess.run',return_value=SimpleNamespace(returncode=0,stdout='{"status":"completed"}\n200')) as run:
+            with open_response(request) as response:
+                self.assertEqual(json.load(response)['status'],'completed')
+        args,kwargs=run.call_args
+        self.assertNotIn('test-private-value',' '.join(args[0]))
+        self.assertIn('Bearer test-private-value',kwargs['input'])
+        self.assertNotIn('shell',kwargs)
 
     def test_input_validation(self):
         for box in [[1,1,1,1],[float('nan'),0,900,900],['0',0,900,900],None]:
