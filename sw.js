@@ -1,5 +1,5 @@
-const CACHE = 'mycloset-shell-v7';
-const ASSETS = ['./','./index.html','./batch.html','./batch.js','./batch.css','./manifest.webmanifest','./icon.svg'];
+const CACHE = 'mycloset-shell-v8';
+const ASSETS = ['./','./index.html','./batch.html','./batch.js','./batch.css','./manifest.webmanifest','./icon.svg','./apple-touch-icon.png','./icon-192.png','./icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));
 });

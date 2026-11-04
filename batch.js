@@ -189,3 +189,16 @@ $('restoreOriginal').onclick=async()=>{
   try{await send('/api/studio/photos/'+cropPhoto.id,'PATCH',{image_edit:null});clearCache();$('cropEditor').close();await refresh(true);note('Foto original restaurada.');}
   catch(error){$('cropError').textContent=error.message;}finally{$('restoreOriginal').disabled=false;}
 };
+
+// The app shell can open offline; private photos and API responses are never cached.
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+let installPrompt=null;
+window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installPrompt=event;$('nativeInstall').hidden=false;});
+$('openInstall').onclick=()=>{
+  $('installConnection').textContent=['localhost','127.0.0.1'].includes(location.hostname)?'Esta dirección solo funciona en el Mac. Para el iPhone necesitas una dirección HTTPS privada accesible desde el móvil.':'Usa esta misma dirección HTTPS desde Safari. El código de acceso se introduce en tu dispositivo.';
+  $('installHelp').showModal();
+};
+$('closeInstall').onclick=()=>$('installHelp').close();
+$('nativeInstall').onclick=async()=>{if(!installPrompt)return;await installPrompt.prompt();const choice=await installPrompt.userChoice;$('installStatus').textContent=choice.outcome==='accepted'?'Instalación solicitada.':'Puedes instalarla más tarde.';installPrompt=null;$('nativeInstall').hidden=true;};
+window.addEventListener('appinstalled',()=>{$('openInstall').hidden=true;});
+if(window.matchMedia('(display-mode: standalone)').matches||navigator.standalone)$('openInstall').hidden=true;

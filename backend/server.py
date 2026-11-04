@@ -476,7 +476,7 @@ def make_handler(closet, token, origins):
             # Serve only explicitly public app assets. Repository/backend/data/env never served.
             name = path.lstrip('/') or 'index.html'
             types = {'index.html': 'text/html; charset=utf-8', 'batch.html': 'text/html; charset=utf-8', 'batch.js': 'text/javascript',
-                     'batch.css': 'text/css', 'sw.js': 'text/javascript', 'manifest.webmanifest': 'application/manifest+json', 'icon.svg': 'image/svg+xml'}
+                     'batch.css': 'text/css', 'sw.js': 'text/javascript', 'manifest.webmanifest': 'application/manifest+json', 'icon.svg': 'image/svg+xml', 'apple-touch-icon.png':'image/png', 'icon-192.png':'image/png', 'icon-512.png':'image/png'}
             if name not in types or not (ROOT / name).is_file():
                 return self.send({'error': 'No encontrado.'}, 404)
             self.send((ROOT / name).read_bytes(), content_type=types[name])

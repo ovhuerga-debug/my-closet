@@ -178,6 +178,23 @@ class HTTPTests(unittest.TestCase):
         self.assertEqual(response.headers['Access-Control-Allow-Origin'],'https://allowed.example')
         self.assertNotIn('private-test-token',response.read().decode())
 
+    def test_iphone_install_assets_are_public_but_private_data_stays_protected(self):
+        manifest=json.load(self.request('/manifest.webmanifest',auth=False))
+        self.assertEqual(manifest['start_url'],'./batch.html')
+        self.assertEqual(manifest['display'],'standalone')
+        for name,size in [('apple-touch-icon.png',180),('icon-192.png',192),('icon-512.png',512)]:
+            response=self.request('/'+name,auth=False)
+            self.assertEqual(response.headers['Content-Type'],'image/png')
+            image=Image.open(io.BytesIO(response.read()))
+            self.assertEqual(image.size,(size,size));self.assertEqual(image.mode,'RGB')
+        page=self.request('/batch.html',auth=False).read().decode()
+        self.assertIn('apple-mobile-web-app-capable',page)
+        self.assertIn('apple-touch-icon.png',page)
+        self.assertIn('viewport-fit=cover',page)
+        worker=self.request('/sw.js',auth=False).read().decode()
+        self.assertIn("url.pathname.includes('/api/')",worker)
+        self.assertIn("event.request.headers.has('Authorization')",worker)
+
     def test_upload_manual_review_delete(self):
         uploaded=json.load(self.request('/api/photos?name=outfit.jpg',outfit_bytes(),'POST'))
         pid=uploaded['id']

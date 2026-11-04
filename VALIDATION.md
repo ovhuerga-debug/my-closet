@@ -29,3 +29,6 @@ Pruebas automáticas de rotación, píxeles recortados, validación, persistenci
 
 ## Estaciones
 Comprobadas las cuatro estaciones, fecha ausente, extracción del día EXIF sin retener metadatos en JPEG, corrección manual persistente, fechas inválidas y ausencia de propuestas/gasto cuando no hay candidatos de la estación. Controles de fecha y estación verificados en navegador sin modificar fotos personales.
+
+## PWA para iPhone
+Manifest abre batch.html en modo standalone. Iconos PNG opacos 180/192/512 y metadatos Apple. Prueba HTTP de acceso público solo a recursos de instalación y conservación de protección de API/medios. Instalación en dispositivo iPhone pendiente: requiere dirección HTTPS privada y comprobación en el dispositivo.
