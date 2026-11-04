@@ -23,3 +23,6 @@ El usuario canceló tanto la separación de prendas como el cambio de fondo. El 
 22 pruebas locales aprobadas. La búsqueda evita confundir el azul de un pantalón con una camisa blanca y distingue camisa de camiseta. Se prueban persistencia de etiquetas, errores que pausan la cola pagada, IDs inexistentes descartados y combinaciones con prendas complementarias en fotos distintas. Ninguna prueba automatizada hace solicitudes reales a OpenAI.
 
 Pruebas reales de esta iteración: tres fotos etiquetadas con Responses API y una petición de looks completada; cuatro fotos indexadas en total al validar la primera muestra. Búsqueda de pantalón vaquero y referencias de looks verificadas en navegador. Las clasificaciones pueden estar equivocadas y el usuario puede corregirlas. No se afirma que todas las fotos del lote estén ya etiquetadas ni que las recomendaciones sean una valoración objetiva de estilo.
+
+## Editor de encuadre
+Pruebas automáticas de rotación, píxeles recortados, validación, persistencia, restauración y borrado de la copia editada. Prueba en navegador local: guardar un encuadre cuadrado girado con zoom, volver a abrirlo y restaurar el original correctamente. Sin llamadas a IA.

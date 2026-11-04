@@ -10,7 +10,7 @@ import numpy as np
 from PIL import Image
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'backend'))
 from server import Closet, make_handler
-from studio import Studio, make_portrait, match_tags
+from studio import Studio, make_portrait, match_tags, render_image_edit, validate_image_edit
 
 TAGS=[{'name':'Camisa de algodón','category':'parte superior','color':'Azul claro'},
       {'name':'Pantalón vaquero','category':'pantalón','color':'Azul oscuro'}]
@@ -108,6 +108,45 @@ class StudioTests(unittest.TestCase):
         self.assertEqual({p['id'] for p in result['suggestion_photos']},{self.pid,other})
         self.s.edit(other,{'approved':True})
         self.assertTrue(next(p for p in self.s.status()['photos'] if p['id']==other)['approved'])
+
+    def test_reframing_persists_and_restores_original_without_ai(self):
+        original=(self.c.media/(self.pid+'.jpg')).read_bytes()
+        edit={'rotation':90,'crop':[.25,0,.5,1]}
+        self.s.edit(self.pid,{'image_edit':edit})
+        record=self.s.status()['photos'][0]
+        self.assertEqual(record['image_edit'],edit)
+        self.assertEqual(record['edit_revision'],1)
+        with Image.open(self.c.media/(self.pid+'-edit.jpg')) as result:
+            self.assertEqual(result.size,(150,200))
+        reopened=Studio(Closet(self.temp.name),lambda *_:None)
+        self.assertEqual(reopened.status()['photos'][0]['image_edit'],edit)
+        self.s.edit(self.pid,{'image_edit':None})
+        record=self.s.status()['photos'][0]
+        self.assertEqual(record['image_edit'],{})
+        self.assertEqual(record['edit_revision'],2)
+        self.assertEqual((self.c.media/(self.pid+'.jpg')).read_bytes(),original)
+        self.assertEqual(self.calls,[])
+        self.c.delete_photo(self.pid)
+        self.assertFalse((self.c.media/(self.pid+'-edit.jpg')).exists())
+
+    def test_rotation_and_crop_match_visible_pixels(self):
+        image=Image.new('RGB',(200,300),'red')
+        image.paste(Image.new('RGB',(200,150),'blue'),(0,150))
+        result=Image.open(io.BytesIO(render_image_edit(image,{'rotation':90,'crop':[0,0,.5,1]})))
+        self.assertEqual(result.size,(150,200))
+        red,green,blue=result.getpixel((70,100))
+        self.assertGreater(blue,240)
+        self.assertLess(red,15)
+
+    def test_invalid_crop_does_not_change_saved_image(self):
+        for edit in [ {'rotation':45,'crop':[0,0,1,1]},
+                      {'rotation':0,'crop':[-.1,0,.5,.5]},
+                      {'rotation':0,'crop':[.9,0,.5,1]},
+                      {'rotation':0,'crop':[0,0,float('nan'),1]},
+                      {'rotation':0,'crop':[0,0,.01,.01]} ]:
+            with self.assertRaises(ValueError):self.s.edit(self.pid,{'image_edit':edit})
+        self.assertEqual(self.s.status()['photos'][0]['image_edit'],{})
+        self.assertFalse((self.c.media/(self.pid+'-edit.jpg')).exists())
 
     def test_index_error_pauses_paid_queue_and_preserves_photo(self):
         self.s.ask=lambda *_:(_ for _ in ()).throw(RuntimeError('No hay saldo'))

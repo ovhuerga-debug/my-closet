@@ -365,7 +365,7 @@ class Closet:
             for gid in ids:
                 db.execute('UPDATE garments SET duplicate_of=NULL WHERE duplicate_of=?', (gid,))
             db.execute('DELETE FROM photos WHERE id=?', (pid,))
-            for name in [pid + '.jpg', pid + '-studio.jpg'] + [gid + suffix for gid in ids for suffix in ('-crop.png', '-cutout.png')]:
+            for name in [pid + '.jpg', pid + '-studio.jpg', pid + '-edit.jpg', pid + '-edit.tmp'] + [gid + suffix for gid in ids for suffix in ('-crop.png', '-cutout.png')]:
                 (self.media / name).unlink(missing_ok=True)
 
     def backup(self):
@@ -451,7 +451,7 @@ def make_handler(closet, token, origins):
                     name = path.rsplit('/', 1)[-1]
                     # Strict allowlist; never permit paths, env files or arbitrary filenames.
                     import re
-                    if not re.fullmatch(r'[a-f0-9]{32}(\.jpg|-studio\.jpg|-crop\.png|-cutout\.png)', name):
+                    if not re.fullmatch(r'[a-f0-9]{32}(\.jpg|-studio\.jpg|-edit\.jpg|-crop\.png|-cutout\.png)', name):
                         return self.send({'error': 'Imagen no encontrada.'}, 404)
                     file = closet.media / name
                     if file.is_file():

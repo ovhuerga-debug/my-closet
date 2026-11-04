@@ -26,11 +26,11 @@ async function loadImages(){
   const nodes=[...document.querySelectorAll('img[data-image]')];
   await Promise.all(Array.from({length:4},async()=>{while(nodes.length){const img=nodes.shift();try{const url=await loadImage(img.dataset.image);if(img.isConnected)img.src=url;}catch{if(img.isConnected)img.alt='No se pudo cargar la foto';}}}));
 }
-function picture(p){return p.id+'.jpg';}
+function picture(p){const current=state?.photos.find(x=>x.id===p.id)||p;return current.image_edit&&Object.keys(current.image_edit).length?current.id+'-edit.jpg?v='+current.edit_revision:current.id+'.jpg';}
 function tagMarkup(p,matches=[]){return p.tags.map((tag,i)=>`<button class="tag ${matches.includes(i)?'selected':''}" data-tag="${esc(tag.name+' '+tag.color)}">${esc(tag.name)} · ${esc(tag.color)}</button>`).join('');}
 function card(p,matches=[]){
   const status=p.index_state==='ready'?'Prendas identificadas':p.index_state==='processing'?'Identificando prendas…':p.index_state==='error'?'Revisar etiquetas':'Foto original';
-  return `<article class="card"><img class="photo" data-action="full" data-id="${p.id}" data-image="${picture(p)}" alt="Foto de tu ropa: ${esc(p.tags.map(t=>t.name).join(', ')||p.name)}" loading="lazy"><div class="body"><span class="status">${status}${p.approved?' · Aprobada':''}</span><h3>${esc(p.name)}</h3>${tagMarkup(p,matches)}${p.index_state==='queued'?'<p class="hint">Prendas pendientes de identificar.</p>':''}${p.index_state==='processing'?'<p class="hint">La IA está identificando las prendas…</p>':''}${p.index_error?`<p class="warning">${esc(p.index_error)}</p>`:''}<div class="actions"><button data-action="full" data-id="${p.id}">Ver foto completa</button><button data-action="approve" data-id="${p.id}">${p.approved?'Quitar favorita':'Guardar favorita'}</button><button data-action="edit" data-id="${p.id}">Revisar prendas</button>${p.index_state==='error'?`<button data-action="retry-index" data-id="${p.id}">Reintentar etiquetas</button>`:''}<button data-action="delete" data-id="${p.id}">Eliminar foto</button></div></div></article>`;
+  return `<article class="card"><img class="photo" data-action="full" data-id="${p.id}" data-image="${picture(p)}" alt="Foto de tu ropa: ${esc(p.tags.map(t=>t.name).join(', ')||p.name)}" loading="lazy"><div class="body"><span class="status">${status}${p.approved?' · Aprobada':''}</span><h3>${esc(p.name)}</h3>${tagMarkup(p,matches)}${p.index_state==='queued'?'<p class="hint">Prendas pendientes de identificar.</p>':''}${p.index_state==='processing'?'<p class="hint">La IA está identificando las prendas…</p>':''}${p.index_error?`<p class="warning">${esc(p.index_error)}</p>`:''}<div class="actions"><button data-action="frame" data-id="${p.id}">Reencuadrar</button><button data-action="full" data-id="${p.id}">Ver foto completa</button><button data-action="approve" data-id="${p.id}">${p.approved?'Quitar favorita':'Guardar favorita'}</button><button data-action="edit" data-id="${p.id}">Revisar prendas</button>${p.index_state==='error'?`<button data-action="retry-index" data-id="${p.id}">Reintentar etiquetas</button>`:''}<button data-action="delete" data-id="${p.id}">Eliminar foto</button></div></div></article>`;
 }
 function empty(message){return `<p class="empty">${esc(message)}</p>`;}
 function switchView(name){view=name;for(const n of ['album','search','looks'])$(n+'View').hidden=n!==name;document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===name)));render(true);}
@@ -42,7 +42,7 @@ function render(force=false){
   $('progressText').textContent=`${indexed}/${total} fotos con prendas identificadas. ${state.indexRunning?'Identificando prendas.':'Identificación en pausa.'}`;
   $('usage').textContent=`IA hoy: ${state.dailyCalls}/${state.dailyLimit} solicitudes. Puedes corregir las etiquetas de cada foto para mejorar las búsquedas.`;
   $('indexRun').textContent=state.indexRunning?'Pausar identificación':'Identificar prendas con IA';$('indexRun').disabled=!connected||!state.configured||!total;
-  if(!force&&$('tagEditor').open)return;
+  if(!force&&($('tagEditor').open||$('cropEditor').open))return;
   const signature=JSON.stringify([view,state.photos,limit,$('galleryFilter').value,[...originals]]);
   if(!force&&signature===lastSignature)return;lastSignature=signature;
   if(view==='album'){
@@ -114,6 +114,7 @@ document.addEventListener('click',async e=>{
   const tag=e.target.closest('[data-tag]');if(tag){search(tag.dataset.tag);return;}
   const b=e.target.closest('[data-action]');if(!b)return;const {action,id}=b.dataset;const p=state.photos.find(p=>p.id===id);if(!p)return;
   try{
+    if(action==='frame'){await openCrop(p);return;}
     if(action==='full'){$('fullPhoto').src=await loadImage(picture(p));$('photoViewer').showModal();return;}
     if(action==='edit'){editorId=id;$('tagRows').innerHTML=p.tags.map(tagRow).join('')||tagRow();$('editError').textContent='';$('tagEditor').showModal();return;}
     if(action==='approve')await send('/api/studio/photos/'+id,'PATCH',{approved:!p.approved});
@@ -126,3 +127,65 @@ $('backup').onclick=async()=>{try{$('backup').disabled=true;const blob=await(awa
 if(!token)$('connection').open=true;
 refresh();setInterval(()=>{if(!uploading&&!document.hidden)refresh();},3000);
 window.addEventListener('pagehide',clearCache);
+
+let cropPhoto=null,cropSource=null,cropRotated=null,cropRotation=0,cropDrag=null,cropBox=null;
+function rebuildRotated(){
+  const canvas=document.createElement('canvas');const swapped=cropRotation%180!==0;
+  canvas.width=swapped?cropSource.naturalHeight:cropSource.naturalWidth;
+  canvas.height=swapped?cropSource.naturalWidth:cropSource.naturalHeight;
+  const ctx=canvas.getContext('2d');ctx.translate(canvas.width/2,canvas.height/2);ctx.rotate(cropRotation*Math.PI/180);ctx.drawImage(cropSource,-cropSource.naturalWidth/2,-cropSource.naturalHeight/2);cropRotated=canvas;
+}
+function cropGeometry(){
+  const W=cropRotated.width,H=cropRotated.height;
+  const ratio=$('cropRatio').value==='original'?W/H:Number($('cropRatio').value);
+  const bw=W/H>ratio?H*ratio:W,bh=bw/ratio,zoom=Number($('cropZoom').value);
+  const w=bw/zoom,h=bh/zoom,x=(W-w)*Number($('cropX').value)/100,y=(H-h)*Number($('cropY').value)/100;
+  return {W,H,ratio,x,y,w,h};
+}
+function paintCrop(){
+  if(!cropRotated)return;const box=cropGeometry();cropBox=box;
+  const canvas=$('cropCanvas');canvas.width=800;canvas.height=Math.round(800/box.ratio);canvas.style.maxWidth=(50*box.ratio)+'vh';
+  const ctx=canvas.getContext('2d');ctx.drawImage(cropRotated,box.x,box.y,box.w,box.h,0,0,canvas.width,canvas.height);
+  $('cropZoomValue').textContent=Number($('cropZoom').value).toFixed(2)+'×';
+}
+async function openCrop(photo){
+  cropPhoto=photo;cropRotation=photo.image_edit?.rotation||0;cropDrag=null;cropBox=null;$('cropError').textContent='';$('saveCrop').disabled=true;
+  cropSource=new Image();cropSource.src=await loadImage(photo.id+'.jpg');await cropSource.decode();rebuildRotated();
+  const saved=photo.image_edit?.crop;
+  $('cropRatio').querySelector('[data-saved]')?.remove();
+  $('cropRatio').value='0.8';$('cropZoom').value=1;$('cropX').value=$('cropY').value=50;
+  if(saved){
+    const [x,y,w,h]=saved;const ratio=w*cropRotated.width/(h*cropRotated.height);
+    let option=[...$('cropRatio').options].find(o=>o.value!=='original'&&Math.abs(Number(o.value)-ratio)<.001);
+    if(!option){option=new Option('Encuadre guardado',String(ratio));option.dataset.saved='1';$('cropRatio').add(option);}
+    $('cropRatio').value=option.value;
+    const W=cropRotated.width,H=cropRotated.height,bw=W/H>ratio?H*ratio:W;
+    $('cropZoom').value=Math.max(1,Math.min(5,bw/(w*W)));
+    $('cropX').value=W-w*W>.01?x*W/(W-w*W)*100:50;
+    $('cropY').value=H-h*H>.01?y*H/(H-h*H)*100:50;
+  }
+  $('cropEditor').showModal();paintCrop();$('saveCrop').disabled=false;
+}
+$('closeCrop').onclick=()=>$('cropEditor').close();
+for(const id of ['cropZoom','cropX','cropY','cropRatio'])$(id).addEventListener('input',()=>{cropDrag=null;paintCrop();});
+$('cropRotate').onclick=()=>{cropRotation=(cropRotation+90)%360;rebuildRotated();$('cropZoom').value=1;$('cropX').value=$('cropY').value=50;paintCrop();};
+$('cropReset').onclick=()=>{$('cropZoom').value=1;$('cropX').value=$('cropY').value=50;paintCrop();};
+$('cropCanvas').addEventListener('pointerdown',event=>{if(!cropBox)return;cropDrag={pointer:event.pointerId,px:event.clientX,py:event.clientY,box:{...cropBox}};event.currentTarget.setPointerCapture(event.pointerId);});
+$('cropCanvas').addEventListener('pointermove',event=>{
+  if(!cropDrag||event.pointerId!==cropDrag.pointer)return;const rect=event.currentTarget.getBoundingClientRect(),b=cropDrag.box;
+  const x=Math.max(0,Math.min(b.W-b.w,b.x-(event.clientX-cropDrag.px)*b.w/rect.width));
+  const y=Math.max(0,Math.min(b.H-b.h,b.y-(event.clientY-cropDrag.py)*b.h/rect.height));
+  $('cropX').value=b.W-b.w>.01?x/(b.W-b.w)*100:50;$('cropY').value=b.H-b.h>.01?y/(b.H-b.h)*100:50;paintCrop();
+});
+for(const name of ['pointerup','pointercancel','lostpointercapture'])$('cropCanvas').addEventListener(name,()=>{cropDrag=null;});
+$('cropForm').onsubmit=async event=>{
+  event.preventDefault();if(!cropPhoto||!cropBox)return;$('saveCrop').disabled=true;
+  const b=cropGeometry();const edit={rotation:cropRotation,crop:[b.x/b.W,b.y/b.H,b.w/b.W,b.h/b.H]};
+  try{await send('/api/studio/photos/'+cropPhoto.id,'PATCH',{image_edit:edit});clearCache();$('cropEditor').close();await refresh(true);note('Encuadre guardado. Puedes restaurar el original desde Reencuadrar.');}
+  catch(error){$('cropError').textContent=error.message;}finally{$('saveCrop').disabled=false;}
+};
+$('restoreOriginal').onclick=async()=>{
+  if(!cropPhoto)return;$('restoreOriginal').disabled=true;
+  try{await send('/api/studio/photos/'+cropPhoto.id,'PATCH',{image_edit:null});clearCache();$('cropEditor').close();await refresh(true);note('Foto original restaurada.');}
+  catch(error){$('cropError').textContent=error.message;}finally{$('restoreOriginal').disabled=false;}
+};

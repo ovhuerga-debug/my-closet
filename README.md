@@ -59,3 +59,6 @@ node --check sw.js
 ```
 
 Las pruebas no llaman a OpenAI ni gastan saldo. Cubren subida, HEIC, persistencia de 200 fotos, autorización, CORS, archivos privados, errores, búsqueda por prenda/color, corrección de etiquetas, referencias verificables y combinaciones entre fotos de prendas individuales. VALIDATION.md recoge los ensayos reales y sus límites.
+
+### Reencuadrar fotos
+Cada foto incluye Reencuadrar: arrastra para moverla, ajusta zoom, gira en pasos de 90° y elige proporción. Guardar encuadre conserva una versión JPEG independiente y la configuración; Restaurar original recupera la foto importada. No cambia el fondo, las etiquetas ni utiliza IA. La copia privada incluye los encuadres guardados.

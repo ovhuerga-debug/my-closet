@@ -1,5 +1,6 @@
 """Whole-outfit portraits, searchable garment labels and evidence-based look suggestions."""
 import io
+import math
 import json
 import re
 import sqlite3
@@ -102,6 +103,35 @@ def match_tags(tags,query):
     return [i for i,t in enumerate(tags) if not words or all(w in fold(' '.join(t.values())) for w in words)]
 
 
+def validate_image_edit(edit):
+    if not isinstance(edit,dict) or set(edit)!={'rotation','crop'}:
+        raise ValueError('El encuadre no es válido.')
+    rotation=edit['rotation']
+    if isinstance(rotation,bool) or rotation not in (0,90,180,270):
+        raise ValueError('El giro debe ser de 0, 90, 180 o 270 grados.')
+    crop=edit['crop']
+    if not isinstance(crop,list) or len(crop)!=4:
+        raise ValueError('El recorte necesita posición, ancho y alto.')
+    if any(isinstance(v,bool) or not isinstance(v,(int,float)) or not math.isfinite(v) for v in crop):
+        raise ValueError('Coordenadas no válidas.')
+    x,y,w,h=[float(v) for v in crop]
+    if x<0 or y<0 or w<=0 or h<=0 or x+w>1.000001 or y+h>1.000001:
+        raise ValueError('El encuadre debe quedar dentro de la foto.')
+    return {'rotation':int(rotation),'crop':[x,y,min(w,1-x),min(h,1-y)]}
+
+
+def render_image_edit(image,edit):
+    edit=validate_image_edit(edit)
+    image=image.convert('RGB')
+    if edit['rotation']:image=image.rotate(-edit['rotation'],expand=True)
+    x,y,w,h=edit['crop']
+    bounds=(round(x*image.width),round(y*image.height),round((x+w)*image.width),round((y+h)*image.height))
+    if bounds[2]-bounds[0]<32 or bounds[3]-bounds[1]<32:
+        raise ValueError('El recorte es demasiado pequeño. Reduce el zoom.')
+    output=io.BytesIO();image.crop(bounds).save(output,'JPEG',quality=92)
+    return output.getvalue()
+
+
 class Studio:
     def __init__(self,closet,ask):
         self.closet,self.ask=closet,ask
@@ -114,6 +144,9 @@ class Studio:
              INSERT OR IGNORE INTO settings VALUES('studio_background','gray');
              INSERT OR IGNORE INTO settings VALUES('studio_visual','0');
              INSERT OR IGNORE INTO settings VALUES('studio_index','0');''')
+            columns={r[1] for r in db.execute('PRAGMA table_info(outfits)')}
+            if 'image_edit' not in columns:db.execute("ALTER TABLE outfits ADD COLUMN image_edit TEXT DEFAULT '{}'")
+            if 'edit_revision' not in columns:db.execute('ALTER TABLE outfits ADD COLUMN edit_revision INTEGER DEFAULT 0')
             db.execute("UPDATE outfits SET visual_state='error',visual_error='El proceso se interrumpió. Puedes reintentarlo.' WHERE visual_state='processing'")
             db.execute("UPDATE outfits SET index_state='error',index_error='El análisis se interrumpió. Reintenta explícitamente si procede.' WHERE index_state='processing'")
             db.execute("UPDATE settings SET value='1' WHERE key='paused'") # Retire garment splitting.
@@ -135,7 +168,7 @@ class Studio:
         with self.closet.lock,self.closet.connect() as db:
             photos=[dict(p) for p in db.execute('SELECT p.id,p.name,p.created,o.* FROM photos p JOIN outfits o ON p.id=o.photo_id ORDER BY p.created DESC')]
             for p in photos:
-                for k in ('tags','flags'):p[k]=json.loads(p[k])
+                for k in ('tags','flags','image_edit'):p[k]=json.loads(p[k])
             settings={r[0]:r[1] for r in db.execute("SELECT key,value FROM settings WHERE key LIKE 'studio_%'")}
             count=db.execute('SELECT count(*) FROM calls WHERE day=?',(time.strftime('%Y-%m-%d',time.gmtime()),)).fetchone()[0]
         return {'photos':photos,'background':settings['studio_background'],'visualRunning':settings['studio_visual']=='1',
@@ -203,6 +236,19 @@ class Studio:
         with self.closet.lock,self.closet.connect() as db:
             row=db.execute('SELECT * FROM outfits WHERE photo_id=?',(pid,)).fetchone()
             if not row:raise ValueError('Foto no encontrada.')
+            if 'image_edit' in body:
+                if body['image_edit'] is None:
+                    db.execute("UPDATE outfits SET image_edit='{}',edit_revision=edit_revision+1 WHERE photo_id=?",(pid,))
+                else:
+                    edit=validate_image_edit(body['image_edit'])
+                    with Image.open(self.closet.media/(pid+'.jpg')) as source:data=render_image_edit(source,edit)
+                    temporary=self.closet.media/(pid+'-edit.tmp')
+                    try:
+                        temporary.write_bytes(data)
+                        temporary.replace(self.closet.media/(pid+'-edit.jpg'))
+                    finally:
+                        temporary.unlink(missing_ok=True)
+                    db.execute('UPDATE outfits SET image_edit=?,edit_revision=edit_revision+1 WHERE photo_id=?',(json.dumps(edit),pid))
             if 'tags' in body:
                 db.execute("UPDATE outfits SET tags=?,index_state='ready',index_error='' WHERE photo_id=?",(json.dumps(normalize_tags(body['tags'])),pid))
                 db.execute("UPDATE photos SET state='review',error='' WHERE id=?",(pid,))
