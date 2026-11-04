@@ -61,6 +61,7 @@ class StudioTests(unittest.TestCase):
         self.assertEqual(result['photos'][0]['id'],self.pid)
         self.assertEqual(result['photos'][0]['matchedTags'],[0])
         self.assertEqual(self.c.snapshot()['garments'],[])
+        self.assertEqual(self.c.snapshot()['photos'][0]['state'],'review')
         self.s.edit(self.pid,{'tags':[{'name':'Camisa','category':'parte superior','color':'Blanco'}]})
         self.assertEqual(self.s.search('camisa azul clarito')['photos'],[])
         reopened=Studio(Closet(self.temp.name),lambda *_:None)

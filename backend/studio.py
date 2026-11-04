@@ -126,7 +126,9 @@ class Studio:
             # Reuse known classifications from previous analyses without charging again.
             for row in db.execute("SELECT photo_id FROM outfits WHERE index_state='queued'").fetchall():
                 tags=db.execute("SELECT name,category,color FROM garments WHERE photo_id=? AND state IN ('review','approved')",(row[0],)).fetchall()
-                if tags:db.execute("UPDATE outfits SET tags=?,index_state='ready' WHERE photo_id=?",(json.dumps([dict(t) for t in tags]),row[0]))
+                if tags:
+                    db.execute("UPDATE outfits SET tags=?,index_state='ready' WHERE photo_id=?",(json.dumps([dict(t) for t in tags]),row[0]))
+                    db.execute("UPDATE photos SET state='review',error='' WHERE id=?",(row[0],))
 
     def status(self):
         self.sync()
@@ -189,6 +191,7 @@ class Studio:
             tags=normalize_tags(result['garments'])
             with self.closet.lock,self.closet.connect() as db:
                 db.execute("UPDATE outfits SET index_state='ready',tags=? WHERE photo_id=?",(json.dumps(tags),pid))
+                db.execute("UPDATE photos SET state='review',error='' WHERE id=?",(pid,))
                 db.execute('UPDATE calls SET usage=? WHERE id=?',(json.dumps(usage),cid))
         except Exception as error:
             message=str(error) if isinstance(error,(RuntimeError,ValueError)) else 'No se pudo etiquetar la foto. El original sigue guardado.'
@@ -200,7 +203,9 @@ class Studio:
         with self.closet.lock,self.closet.connect() as db:
             row=db.execute('SELECT * FROM outfits WHERE photo_id=?',(pid,)).fetchone()
             if not row:raise ValueError('Foto no encontrada.')
-            if 'tags' in body:db.execute("UPDATE outfits SET tags=?,index_state='ready',index_error='' WHERE photo_id=?",(json.dumps(normalize_tags(body['tags'])),pid))
+            if 'tags' in body:
+                db.execute("UPDATE outfits SET tags=?,index_state='ready',index_error='' WHERE photo_id=?",(json.dumps(normalize_tags(body['tags'])),pid))
+                db.execute("UPDATE photos SET state='review',error='' WHERE id=?",(pid,))
             if 'approved' in body:
                 if not isinstance(body['approved'],bool):raise ValueError('Aprobación no válida.')
                 db.execute('UPDATE outfits SET approved=? WHERE photo_id=?',(body['approved'],pid))
