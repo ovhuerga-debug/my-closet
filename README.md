@@ -62,3 +62,6 @@ Las pruebas no llaman a OpenAI ni gastan saldo. Cubren subida, HEIC, persistenci
 
 ### Reencuadrar fotos
 Cada foto incluye Reencuadrar: arrastra para moverla, ajusta zoom, gira en pasos de 90° y elige proporción. Guardar encuadre conserva una versión JPEG independiente y la configuración; Restaurar original recupera la foto importada. No cambia el fondo, las etiquetas ni utiliza IA. La copia privada incluye los encuadres guardados.
+
+### Looks por estación
+El álbum y el estilista permiten seleccionar primavera, verano, otoño o invierno. Nuevas importaciones conservan solo el día EXIF DateTimeOriginal; el JPEG queda sin EXIF/GPS. Meses del hemisferio norte: diciembre–febrero invierno, marzo–mayo primavera, junio–agosto verano, septiembre–noviembre otoño. Revisar prendas permite corregir fecha o estación. Fotos antiguas sin fecha quedan Sin estación: no se utiliza la fecha de subida como captura. Las propuestas solo utilizan fotos etiquetadas de la estación elegida. Clasificar por fecha es local, sin consumo de IA; solicitar propuestas conserva el coste habitual.

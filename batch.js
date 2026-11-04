@@ -30,7 +30,7 @@ function picture(p){const current=state?.photos.find(x=>x.id===p.id)||p;return c
 function tagMarkup(p,matches=[]){return p.tags.map((tag,i)=>`<button class="tag ${matches.includes(i)?'selected':''}" data-tag="${esc(tag.name+' '+tag.color)}">${esc(tag.name)} · ${esc(tag.color)}</button>`).join('');}
 function card(p,matches=[]){
   const status=p.index_state==='ready'?'Prendas identificadas':p.index_state==='processing'?'Identificando prendas…':p.index_state==='error'?'Revisar etiquetas':'Foto original';
-  return `<article class="card"><img class="photo" data-action="full" data-id="${p.id}" data-image="${picture(p)}" alt="Foto de tu ropa: ${esc(p.tags.map(t=>t.name).join(', ')||p.name)}" loading="lazy"><div class="body"><span class="status">${status}${p.approved?' · Aprobada':''}</span><h3>${esc(p.name)}</h3>${tagMarkup(p,matches)}${p.index_state==='queued'?'<p class="hint">Prendas pendientes de identificar.</p>':''}${p.index_state==='processing'?'<p class="hint">La IA está identificando las prendas…</p>':''}${p.index_error?`<p class="warning">${esc(p.index_error)}</p>`:''}<div class="actions"><button data-action="frame" data-id="${p.id}">Reencuadrar</button><button data-action="full" data-id="${p.id}">Ver foto completa</button><button data-action="approve" data-id="${p.id}">${p.approved?'Quitar favorita':'Guardar favorita'}</button><button data-action="edit" data-id="${p.id}">Revisar prendas</button>${p.index_state==='error'?`<button data-action="retry-index" data-id="${p.id}">Reintentar etiquetas</button>`:''}<button data-action="delete" data-id="${p.id}">Eliminar foto</button></div></div></article>`;
+  return `<article class="card"><img class="photo" data-action="full" data-id="${p.id}" data-image="${picture(p)}" alt="Foto de tu ropa: ${esc(p.tags.map(t=>t.name).join(', ')||p.name)}" loading="lazy"><div class="body"><span class="status">${status} · ${esc(p.season||'Sin estación')}${p.approved?' · Aprobada':''}</span><h3>${esc(p.name)}</h3>${tagMarkup(p,matches)}${p.index_state==='queued'?'<p class="hint">Prendas pendientes de identificar.</p>':''}${p.index_state==='processing'?'<p class="hint">La IA está identificando las prendas…</p>':''}${p.index_error?`<p class="warning">${esc(p.index_error)}</p>`:''}<div class="actions"><button data-action="frame" data-id="${p.id}">Reencuadrar</button><button data-action="full" data-id="${p.id}">Ver foto completa</button><button data-action="approve" data-id="${p.id}">${p.approved?'Quitar favorita':'Guardar favorita'}</button><button data-action="edit" data-id="${p.id}">Revisar prendas</button>${p.index_state==='error'?`<button data-action="retry-index" data-id="${p.id}">Reintentar etiquetas</button>`:''}<button data-action="delete" data-id="${p.id}">Eliminar foto</button></div></div></article>`;
 }
 function empty(message){return `<p class="empty">${esc(message)}</p>`;}
 function switchView(name){view=name;for(const n of ['album','search','looks'])$(n+'View').hidden=n!==name;document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===name)));render(true);}
@@ -47,7 +47,7 @@ function render(force=false){
   if(!force&&signature===lastSignature)return;lastSignature=signature;
   if(view==='album'){
     const filter=$('galleryFilter').value;
-    const photos=state.photos.filter(p=>filter==='all'||filter==='ready'&&p.index_state==='ready'||filter==='pending'&&p.index_state!=='ready'||filter==='approved'&&p.approved);
+    const photos=state.photos.filter(p=>filter==='all'||filter==='ready'&&p.index_state==='ready'||filter==='pending'&&p.index_state!=='ready'||filter==='approved'&&p.approved||filter===p.season||filter==='undated'&&!p.season);
     // Show ready samples first, then the rest of the album.
     photos.sort((a,b)=>(b.index_state==='ready')-(a.index_state==='ready'));
     $('albumGrid').innerHTML=photos.slice(0,limit).map(p=>card(p)).join('')||empty('Tu álbum empieza con una foto de tu ropa.');
@@ -103,12 +103,12 @@ $('looksForm').onsubmit=async e=>{
   e.preventDefault();if(looking)return;
   if(!$('aiConsent').checked){note('Marca la autorización de OpenAI para pedir propuestas de looks.');return;}
   looking=true;$('askLooks').disabled=true;$('lookStatus').textContent='Preparando propuestas con tus prendas…';
-  try{lookResult=await send('/api/studio/looks','POST',{query:$('lookQuery').value||'Hazme un look'});renderLooks();note();await refresh();}catch(e){$('lookStatus').textContent=e.message;}finally{looking=false;$('askLooks').disabled=false;}
+  try{lookResult=await send('/api/studio/looks','POST',{query:$('lookQuery').value||'Hazme un look',season:$('lookSeason').value});renderLooks();note();await refresh();}catch(e){$('lookStatus').textContent=e.message;}finally{looking=false;$('askLooks').disabled=false;}
 };
 function tagRow(tag={name:'',category:'parte superior',color:''}){return `<div class="tagRow"><input data-field="name" aria-label="Nombre de prenda" maxlength="120" required placeholder="Camisa" value="${esc(tag.name)}"><select data-field="category" aria-label="Categoría">${categories.map(c=>`<option ${tag.category===c?'selected':''}>${c}</option>`).join('')}</select><input data-field="color" aria-label="Color" maxlength="80" required placeholder="Azul claro" value="${esc(tag.color)}"><button type="button" data-remove-tag>Quitar</button></div>`;}
 $('closePhoto').onclick=()=>$('photoViewer').close();
 $('closeEditor').onclick=()=>$('tagEditor').close();$('addTag').onclick=()=>{if($('tagRows').children.length<20)$('tagRows').insertAdjacentHTML('beforeend',tagRow());};
-$('tagsForm').onsubmit=async e=>{e.preventDefault();const tags=[...document.querySelectorAll('.tagRow')].map(row=>Object.fromEntries([...row.querySelectorAll('[data-field]')].map(el=>[el.dataset.field,el.value])));try{await send('/api/studio/photos/'+editorId,'PATCH',{tags});$('tagEditor').close();searchResult=lookResult=null;await refresh(true);}catch(e){$('editError').textContent=e.message;}};
+$('tagsForm').onsubmit=async e=>{e.preventDefault();const tags=[...document.querySelectorAll('.tagRow')].map(row=>Object.fromEntries([...row.querySelectorAll('[data-field]')].map(el=>[el.dataset.field,el.value])));try{await send('/api/studio/photos/'+editorId,'PATCH',{tags,captured_date:$('photoDate').value,season_override:$('photoSeason').value});$('tagEditor').close();searchResult=lookResult=null;await refresh(true);}catch(e){$('editError').textContent=e.message;}};
 document.addEventListener('click',async e=>{
   const remove=e.target.closest('[data-remove-tag]');if(remove){remove.closest('.tagRow').remove();return;}
   const tag=e.target.closest('[data-tag]');if(tag){search(tag.dataset.tag);return;}
@@ -116,7 +116,7 @@ document.addEventListener('click',async e=>{
   try{
     if(action==='frame'){await openCrop(p);return;}
     if(action==='full'){$('fullPhoto').src=await loadImage(picture(p));$('photoViewer').showModal();return;}
-    if(action==='edit'){editorId=id;$('tagRows').innerHTML=p.tags.map(tagRow).join('')||tagRow();$('editError').textContent='';$('tagEditor').showModal();return;}
+    if(action==='edit'){editorId=id;$('photoDate').value=p.captured_date||'';$('photoSeason').value=p.season_override||'';$('tagRows').innerHTML=p.tags.map(tagRow).join('')||tagRow();$('editError').textContent='';$('tagEditor').showModal();return;}
     if(action==='approve')await send('/api/studio/photos/'+id,'PATCH',{approved:!p.approved});
     if(action==='delete'){if(!confirm('¿Eliminar esta foto, su versión unificada y sus etiquetas del servidor?'))return;await api('/api/photos/'+id,{method:'DELETE'});clearCache();}
     if(action.startsWith('retry-')){const scope=action.slice(6);if(scope==='index'&&(!confirm('Reintentar enviará la foto a OpenAI y puede consumir saldo.')||!$('aiConsent').checked))return;await send('/api/studio/photos/'+id,'PATCH',{retry:scope});}

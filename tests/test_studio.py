@@ -9,8 +9,8 @@ from unittest.mock import patch
 import numpy as np
 from PIL import Image
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'backend'))
-from server import Closet, make_handler
-from studio import Studio, make_portrait, match_tags, render_image_edit, validate_image_edit
+from server import Closet, make_handler, capture_date
+from studio import Studio, make_portrait, match_tags, render_image_edit, validate_image_edit, season_for_date
 
 TAGS=[{'name':'Camisa de algodón','category':'parte superior','color':'Azul claro'},
       {'name':'Pantalón vaquero','category':'pantalón','color':'Azul oscuro'}]
@@ -35,6 +35,30 @@ class StudioTests(unittest.TestCase):
         self.pid=self.c.upload(photo_bytes(),'outfit.heic')['id'];self.s.sync()
 
     def tearDown(self):self.temp.cleanup()
+
+    def test_seasons_use_capture_date_and_manual_override(self):
+        self.assertEqual([season_for_date('2024-'+m+'-15') for m in ('01','04','07','10')],['invierno','primavera','verano','otoño'])
+        self.assertEqual(self.s.status()['photos'][0]['season'],'')
+        self.s.edit(self.pid,{'tags':TAGS,'captured_date':'2024-07-15'})
+        self.assertEqual(len(self.s.search('camisa','verano')['photos']),1)
+        self.assertEqual(self.s.search('camisa','invierno')['photos'],[])
+        self.s.edit(self.pid,{'season_override':'invierno'})
+        self.assertEqual(Studio(self.c,self.s.ask).status()['photos'][0]['season'],'invierno')
+        self.assertEqual(self.s.looks('look de verano')['suggestions'],[])
+        self.assertEqual(self.calls,[])
+        for body in ({'captured_date':'2024-99-01'},{'season_override':'otra'}):
+            with self.assertRaises(ValueError):self.s.edit(self.pid,body)
+        self.s.edit(self.pid,{'season_override':''})
+        self.assertEqual(self.s.status()['photos'][0]['season'],'verano')
+
+    def test_capture_day_preserved_but_exif_removed(self):
+        image=Image.new('RGB',(200,300),'red');exif=Image.Exif();exif[36867]='2023:10:07 12:30:45'
+        data=io.BytesIO();image.save(data,'JPEG',exif=exif)
+        self.assertEqual(capture_date(data.getvalue()),'2023-10-07')
+        pid=self.c.upload(data.getvalue(),'dated.jpg')['id'];self.s.sync()
+        photo=next(p for p in self.s.status()['photos'] if p['id']==pid)
+        self.assertEqual(photo['season'],'otoño')
+        with Image.open(self.c.media/(pid+'.jpg')) as saved:self.assertFalse(saved.getexif())
 
     def test_blue_light_shirt_matches_same_garment_not_other_blue_item(self):
         self.assertEqual(match_tags(TAGS,'camisa azul clarito'),[0])

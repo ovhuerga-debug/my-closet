@@ -1,5 +1,6 @@
 """Private, single-owner MY CLOSET server. Python 3.9+, no public static secrets."""
 import argparse
+from datetime import datetime
 import base64
 import hashlib
 import hmac
@@ -46,6 +47,18 @@ def normalized_box(box):
     if x2 - x1 < 15 or y2 - y1 < 15:
         raise ValueError('El recorte es demasiado pequeño.')
     return [x1, y1, x2, y2]
+
+
+def capture_date(raw):
+    """Retain only the capture day; never location or other EXIF."""
+    try:
+        with Image.open(io.BytesIO(raw)) as image:
+            exif=image.getexif()
+            details=exif.get_ifd(34665) if 34665 in exif else {}
+            value=details.get(36867) or exif.get(36867)
+            if value:return datetime.strptime(str(value)[:10], '%Y:%m:%d').date().isoformat()
+    except (ValueError, TypeError, OSError, SyntaxError):pass
+    return ''
 
 
 def prepare_image(raw):
@@ -217,6 +230,7 @@ class Closet:
               CREATE TABLE IF NOT EXISTS calls(id TEXT PRIMARY KEY, day TEXT, usage TEXT);
               INSERT OR IGNORE INTO settings VALUES('paused','1');
             ''')
+            if 'captured_date' not in {r[1] for r in db.execute('PRAGMA table_info(photos)')}:db.execute("ALTER TABLE photos ADD COLUMN captured_date TEXT DEFAULT ''")
             columns={r[1] for r in db.execute('PRAGMA table_info(garments)')}
             for column in ('method','warning'):
                 if column not in columns:
@@ -245,10 +259,12 @@ class Closet:
             canonical = hashlib.sha256(clean).hexdigest()
             existing = db.execute('SELECT id FROM photos WHERE hash=?', (canonical,)).fetchone()
             if existing:
+                captured=capture_date(raw)
+                if captured:db.execute("UPDATE photos SET captured_date=? WHERE id=? AND captured_date=''",(captured,existing['id']))
                 return {'id': existing['id'], 'duplicate': True}
             pid = uuid.uuid4().hex
             (self.media / (pid + '.jpg')).write_bytes(clean)
-            db.execute('INSERT INTO photos VALUES(?,?,?,?,?,?)', (pid, name[:150], canonical, 'queued', '', time.time()))
+            db.execute('INSERT INTO photos(id,name,hash,state,error,created,captured_date) VALUES(?,?,?,?,?,?,?)', (pid, name[:150], canonical, 'queued', '', time.time(), capture_date(raw)))
             return {'id': pid, 'duplicate': False}
 
     def add_garments(self, photo_id, items, usage=None):
@@ -477,7 +493,7 @@ def make_handler(closet, token, origins):
                 if path == '/api/studio/control' and self.command == 'POST':
                     closet.studio.control(body)
                 elif path == '/api/studio/looks' and self.command == 'POST':
-                    return self.send(closet.studio.looks(str(body.get('query',''))[:500]))
+                    return self.send(closet.studio.looks(str(body.get('query',''))[:500],body.get('season','')))
                 elif path.startswith('/api/studio/photos/') and self.command == 'PATCH':
                     closet.studio.edit(path.rsplit('/',1)[-1],body)
                 elif path == '/api/pause' and self.command == 'POST':

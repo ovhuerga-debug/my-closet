@@ -26,3 +26,6 @@ Pruebas reales de esta iteración: tres fotos etiquetadas con Responses API y un
 
 ## Editor de encuadre
 Pruebas automáticas de rotación, píxeles recortados, validación, persistencia, restauración y borrado de la copia editada. Prueba en navegador local: guardar un encuadre cuadrado girado con zoom, volver a abrirlo y restaurar el original correctamente. Sin llamadas a IA.
+
+## Estaciones
+Comprobadas las cuatro estaciones, fecha ausente, extracción del día EXIF sin retener metadatos en JPEG, corrección manual persistente, fechas inválidas y ausencia de propuestas/gasto cuando no hay candidatos de la estación. Controles de fecha y estación verificados en navegador sin modificar fotos personales.
