@@ -24,6 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import cv2
 from clothing import clothing_labels, garment_mask, masked_extract
+from studio import Studio
 import numpy as np
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pillow_heif import register_heif_opener
@@ -174,6 +175,26 @@ def detect(image_bytes, key, model):
             raise RuntimeError('Clasificación de IA no válida.')
         item['confidence'] = max(0, min(1, float(item['confidence'])))
     return garments, result.get('usage', {})
+
+
+def ai_json(prompt, schema, image_bytes, key, model):
+    if not key:raise RuntimeError('Configura la clave de IA en el servidor para etiquetar y proponer looks.')
+    content=[{'type':'input_text','text':prompt}]
+    if image_bytes:content.append({'type':'input_image','detail':'high','image_url':'data:image/jpeg;base64,'+base64.b64encode(image_bytes).decode()})
+    payload={'model':model,'store':False,'max_output_tokens':2500,'input':[{'role':'user','content':content}],
+             'text':{'format':{'type':'json_schema','name':'closet_result','strict':True,'schema':schema}}}
+    request=urllib.request.Request('https://api.openai.com/v1/responses',data=json.dumps(payload).encode(),headers={'Authorization':'Bearer '+key,'Content-Type':'application/json'})
+    try:
+        with open_response(request) as response:result=json.load(response)
+    except urllib.error.HTTPError as error:
+        try:code=json.loads(error.read()).get('error',{}).get('code')
+        except (ValueError,AttributeError):code=None
+        if code in ('credit_balance_exhausted','insufficient_quota'):raise RuntimeError('Saldo de OpenAI insuficiente. El álbum y los originales siguen guardados.') from None
+        raise RuntimeError('OpenAI no pudo completar el análisis (HTTP '+str(error.code)+'). No se reintenta automáticamente.') from None
+    if result.get('status')!='completed':raise RuntimeError('La IA no completó el resultado. Puedes reintentar explícitamente.')
+    output=''.join(c.get('text','') for o in result.get('output',[]) for c in o.get('content',[]) if c.get('type')=='output_text')
+    try:return json.loads(output),result.get('usage',{})
+    except ValueError:raise RuntimeError('La IA no devolvió un resultado válido.') from None
 
 
 class Closet:
@@ -336,11 +357,15 @@ class Closet:
                 raise ValueError('Foto no encontrada.')
             if row['state'] == 'processing':
                 raise ValueError('Espera a que termine esta foto antes de eliminarla.')
+            if db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='outfits'").fetchone():
+                active=db.execute('SELECT visual_state,index_state FROM outfits WHERE photo_id=?',(pid,)).fetchone()
+                if active and 'processing' in tuple(active):
+                    raise ValueError('Espera a que termine el proceso actual de esta foto antes de eliminarla.')
             ids = [r[0] for r in db.execute('SELECT id FROM garments WHERE photo_id=?', (pid,))]
             for gid in ids:
                 db.execute('UPDATE garments SET duplicate_of=NULL WHERE duplicate_of=?', (gid,))
             db.execute('DELETE FROM photos WHERE id=?', (pid,))
-            for name in [pid + '.jpg'] + [gid + suffix for gid in ids for suffix in ('-crop.png', '-cutout.png')]:
+            for name in [pid + '.jpg', pid + '-studio.jpg'] + [gid + suffix for gid in ids for suffix in ('-crop.png', '-cutout.png')]:
                 (self.media / name).unlink(missing_ok=True)
 
     def backup(self):
@@ -413,6 +438,11 @@ def make_handler(closet, token, origins):
             if path.startswith('/api/'):
                 if not self.authorized():
                     return
+                if path == '/api/studio':
+                    return self.send(closet.studio.status())
+                if path.startswith('/api/search'):
+                    query=urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get('q',[''])[0]
+                    return self.send(closet.studio.search(query))
                 if path == '/api/status':
                     return self.send(closet.snapshot())
                 if path == '/api/backup':
@@ -421,7 +451,7 @@ def make_handler(closet, token, origins):
                     name = path.rsplit('/', 1)[-1]
                     # Strict allowlist; never permit paths, env files or arbitrary filenames.
                     import re
-                    if not re.fullmatch(r'[a-f0-9]{32}(\.jpg|-crop\.png|-cutout\.png)', name):
+                    if not re.fullmatch(r'[a-f0-9]{32}(\.jpg|-studio\.jpg|-crop\.png|-cutout\.png)', name):
                         return self.send({'error': 'Imagen no encontrada.'}, 404)
                     file = closet.media / name
                     if file.is_file():
@@ -444,7 +474,13 @@ def make_handler(closet, token, origins):
                     name = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get('name', ['Foto'])[0]
                     return self.send(closet.upload(self.read_body(), name), 201)
                 body = json.loads(self.read_body()) if self.command != 'DELETE' else {}
-                if path == '/api/pause' and self.command == 'POST':
+                if path == '/api/studio/control' and self.command == 'POST':
+                    closet.studio.control(body)
+                elif path == '/api/studio/looks' and self.command == 'POST':
+                    return self.send(closet.studio.looks(str(body.get('query',''))[:500]))
+                elif path.startswith('/api/studio/photos/') and self.command == 'PATCH':
+                    closet.studio.edit(path.rsplit('/',1)[-1],body)
+                elif path == '/api/pause' and self.command == 'POST':
                     if not isinstance(body.get('paused'), bool):
                         raise ValueError('Estado de pausa no válido.')
                     closet.pause(body['paused'])
@@ -480,7 +516,7 @@ def make_handler(closet, token, origins):
                 else:
                     return self.send({'error': 'No encontrado.'}, 404)
                 self.send({'ok': True})
-            except (ValueError, KeyError, TypeError, Image.DecompressionBombWarning) as error:
+            except (ValueError, KeyError, TypeError, RuntimeError, Image.DecompressionBombWarning) as error:
                 self.send({'error': str(error)[:300]}, 400)
             except Exception:
                 self.send({'error': 'Error del servidor. No se ha confirmado la operación.'}, 500)
@@ -510,7 +546,8 @@ def main():
     closet = Closet(args.data, key, os.environ.get('OPENAI_MODEL', 'gpt-4.1-mini'), int(os.environ.get('DAILY_ANALYSIS_LIMIT', '220')))
     server = ThreadingHTTPServer(('127.0.0.1', args.port), make_handler(closet, token, origins))
     server.daemon_threads = True
-    worker = threading.Thread(target=closet.worker, daemon=True)
+    closet.studio=Studio(closet,lambda prompt,schema,image:ai_json(prompt,schema,image,closet.key,closet.model))
+    worker = threading.Thread(target=closet.studio.worker, daemon=True)
     worker.start()
     print('MY CLOSET privado: http://127.0.0.1:' + str(args.port) + '/batch.html#token=' + token, flush=True)
     print('IA configurada.' if key else 'Sin clave: recorte y revisión manual disponibles.', flush=True)

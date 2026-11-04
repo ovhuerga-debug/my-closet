@@ -15,3 +15,11 @@ Seguimiento de subida: la imagen del usuario llegó al servidor, pero el anális
 3 de noviembre: conversión de HEIC creado con macOS a JPEG sin EXIF y subida a cola comprobadas. Se incluye fixture sintética en base64; no hay fotos personales en el repositorio. La conversión no usa IA.
 
 4 de noviembre: saldo de API verificado con respuesta 200. Primera muestra real reveló coordenadas erróneas y máscaras GrabCut inadecuadas. Esas propuestas se retiraron de revisión, conservando su historial. Se añade segmentación semántica local, se revisa visualmente pantalón y parte superior, y se marcan los recortes de prendas superpuestas como parciales. El lote permanece pausado para revisión; no se afirma separación perfecta. La ropa tapada no puede recuperarse fielmente de esa foto.
+
+## Alcance final — 4 de noviembre de 2026
+
+El usuario canceló tanto la separación de prendas como el cambio de fondo. El nuevo álbum muestra las fotos con su fondo original, rellenando las tarjetas; se comprueba la apertura del original completo en un visor. La cola de transformación visual queda desactivada. Se mantienen carga de HEIC y lotes, etiquetas editables, búsqueda por prenda/color y propuestas de looks con fotos de referencia, incluidas prendas individuales de distintas fotos.
+
+22 pruebas locales aprobadas. La búsqueda evita confundir el azul de un pantalón con una camisa blanca y distingue camisa de camiseta. Se prueban persistencia de etiquetas, errores que pausan la cola pagada, IDs inexistentes descartados y combinaciones con prendas complementarias en fotos distintas. Ninguna prueba automatizada hace solicitudes reales a OpenAI.
+
+Pruebas reales de esta iteración: tres fotos etiquetadas con Responses API y una petición de looks completada; cuatro fotos indexadas en total al validar la primera muestra. Búsqueda de pantalón vaquero y referencias de looks verificadas en navegador. Las clasificaciones pueden estar equivocadas y el usuario puede corregirlas. No se afirma que todas las fotos del lote estén ya etiquetadas ni que las recomendaciones sean una valoración objetiva de estilo.
