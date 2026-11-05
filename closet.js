@@ -1,9 +1,11 @@
+import {initStylist} from './stylist.mjs';
 
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2';
 const supabase=createClient('https://tqphpcoqnlhzlxvzilxy.supabase.co','sb_publishable_xX9_VMIhz3C_JLTmhtWoPw_4KpWD73b',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $=id=>document.getElementById(id);let busy=false, stop=false, retryFiles=[], garments=[], outfits=[], stateRunning=false;
+const stylist=initStylist({client:supabase,getCatalog:()=>garments,onSaved:load});
 function msg(s){$('status').textContent=s;$('globalStatus').textContent=s}
-async function state(){if(stateRunning||busy)return;stateRunning=true;try{const {data:{user},error}=await supabase.auth.getUser();if(error)console.warn(error.message);$('login').classList.toggle('hidden',!!user);$('private').classList.toggle('hidden',!user);if(user){$('who').textContent=user.email||user.id;await Promise.all([load(),loadGarments()])}else{garments=[];outfits=[];$('gallery').replaceChildren();$('garmentGallery').replaceChildren()}}catch(e){$('globalStatus').textContent='No se pudo conectar: '+e.message}finally{stateRunning=false}}
+async function state(){if(stateRunning||busy)return;stateRunning=true;try{const {data:{user},error}=await supabase.auth.getUser();if(error)console.warn(error.message);$('login').classList.toggle('hidden',!!user);$('private').classList.toggle('hidden',!user);if(user){$('who').textContent=user.email||user.id;await Promise.all([load(),loadGarments()])}else{garments=[];outfits=[];stylist.reset();$('gallery').replaceChildren();$('garmentGallery').replaceChildren()}}catch(e){$('globalStatus').textContent='No se pudo conectar: '+e.message}finally{stateRunning=false}}
 $('send').onclick=async()=>{let email=$('email').value.trim();if(!email)return;$('send').disabled=true;let {error}=await supabase.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});$('authMsg').textContent=error?error.message:'Comprueba tu correo y abre el enlace de acceso.';$('send').disabled=false};
 $('logout').onclick=async()=>{await supabase.auth.signOut();await state()};
 $('refresh').onclick=load;
@@ -72,7 +74,7 @@ async function loadGarments(){
   const {data:{user}}=await supabase.auth.getUser();if(!user)return;
   const {data,error}=await readAll('garments','id,name,category,color,colors,pattern,style,description,image_path');
   if(error){aiMsg('Error al cargar prendas: '+error.message);return}
-  garments=data;$('garmentCount').textContent=data.length;fillCategories();renderGarments();}
+  garments=data;$('garmentCount').textContent=data.length;fillCategories();renderGarments();stylist.catalogChanged();}
 let renderVersion=0;
 function renderGarments(){const version=++renderVersion;const data=filteredGarments();const gallery=$('garmentGallery');gallery.replaceChildren();$('count').textContent=data.length+' prenda(s)';renderGarmentCards(data,gallery,version).catch(e=>aiMsg('No se pudieron mostrar las prendas: '+e.message));}
 async function renderGarmentCards(data,gallery,version){
