@@ -39,21 +39,21 @@ $('saveGarment').onclick=async()=>{
   const path=user.id+'/garments/'+crypto.randomUUID()+'.jpg';
   try{
     const up=await supabase.storage.from('closet-images').upload(path,garmentBlob,{contentType:'image/jpeg',upsert:false});if(up.error)throw up.error;
-    const description=[$('gDescription').value.trim(),$('gPattern').value.trim()?'Estampado: '+$('gPattern').value.trim():'',$('gStyle').value.trim()?'Estilo: '+$('gStyle').value.trim():''].filter(Boolean).join(' · ');
-    const ins=await supabase.from('garments').insert({user_id:user.id,name:$('gName').value.trim()||'Prenda sin nombre',category:$('gCategory').value.trim(),color:$('gColors').value.trim(),image_path:path});
+    const description=$('gDescription').value.trim();
+    const ins=await supabase.from('garments').insert({user_id:user.id,name:$('gName').value.trim()||'Prenda sin nombre',category:$('gCategory').value.trim(),color:$('gColors').value.trim(),colors:$('gColors').value.split(',').map(x=>x.trim()).filter(Boolean),pattern:$('gPattern').value.trim(),style:$('gStyle').value.trim(),description,image_path:path});
     if(ins.error){await supabase.storage.from('closet-images').remove([path]);throw ins.error}
-    aiMsg('Prenda guardada.');$('aiForm').classList.add('hidden');garmentBlob=null;await loadGarments();
+    aiMsg('Prenda y descripción completa guardadas en la nube.');$('aiForm').classList.add('hidden');garmentBlob=null;await loadGarments();
   }catch(e){aiMsg('No se pudo guardar: '+e.message)}finally{$('saveGarment').disabled=false}
 };
 $('refreshGarments').onclick=loadGarments;
 async function loadGarments(){
   const {data:{user}}=await supabase.auth.getUser();if(!user)return;
-  const {data,error}=await supabase.from('garments').select('id,name,category,color,image_path').order('created_at',{ascending:false}).limit(250);
+  const {data,error}=await supabase.from('garments').select('id,name,category,color,colors,pattern,style,description,image_path').order('created_at',{ascending:false}).limit(250);
   if(error){aiMsg('Error al cargar prendas: '+error.message);return}
   const gallery=$('garmentGallery');gallery.replaceChildren();
   for(const g of data){const {data:link,error:e}=await supabase.storage.from('closet-images').createSignedUrl(g.image_path,3600);if(e)continue;
     const div=document.createElement('div');div.className='tile';const img=document.createElement('img');img.src=link.signedUrl;img.loading='lazy';
-    const label=document.createElement('p');label.textContent=[g.name,g.category,g.color].filter(Boolean).join(' · ');div.append(img,label);gallery.append(div)}
+    const label=document.createElement('p');label.textContent=[g.name,g.category,(g.colors?.length?g.colors.join(', '):g.color),g.pattern,g.style,g.description].filter(Boolean).join(' · ');div.append(img,label);gallery.append(div)}
   if(!data.length)gallery.textContent='Aún no hay prendas guardadas.';
 }
 
