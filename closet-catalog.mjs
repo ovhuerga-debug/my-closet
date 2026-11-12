@@ -1,21 +1,23 @@
-import {fold} from './combinations.mjs?v=20261112';
+import {fold} from './combinations.mjs?v=20261112e';
 
 export const categories = [
   'Cazadora', 'Abrigo largo', 'Plumíferos', 'Camisas', 'Camisa manga corta',
   'Jerseys', 'Sudadera', 'Polos', 'Camisetas', 'Pantalón', 'Vaquero', 'Bermudas',
-  'Zapatillas', 'Zapatos', 'Calzado de verano'
+  'Zapatillas', 'Zapatos', 'Botas', 'Calzado de verano', 'Complementos'
 ];
 
 export function categoryFor(item) {
   const text = fold([item.category, item.name].filter(Boolean).join(' '));
   const rules = [
+    ['Complementos', /\b(?:complementos?|accesorios?|bolsos?|mochilas?|cintur(?:on|ones)|bufandas?|panuelos?|gorras?|sombreros?|reloj(?:es)?|gafas|joyas?|collares?|pulseras?|guantes?|accessor(?:y|ies)|bags?|belts?|scarves|scarf)\b/],
+    ['Botas', /\b(?:botas?|botin(?:es)?|boots?)\b/],
     ['Plumíferos', /plumifer|plumas|puffer|acolchad/],
     ['Abrigo largo', /abrigo|gabardina|trench|overcoat/],
     ['Sudadera', /\b(?:sudaderas?|hoodies?|sweatshirts?)\b/],
     ['Cazadora', /cazadora|chaqueta|jacket|blazer|americana/],
     ['Calzado de verano', /sandalia|calzado de verano|alpargata|chancla/],
     ['Zapatillas', /zapatilla|sneaker|deportivas/],
-    ['Zapatos', /zapato|mocasin|loafer|botas?|botin/],
+    ['Zapatos', /zapato|mocasin|loafer/],
     ['Bermudas', /bermuda|shorts?|pantalon corto/],
     ['Vaquero', /vaquero|jeans|tejanos/],
     ['Pantalón', /pantalon|trouser|chino/],

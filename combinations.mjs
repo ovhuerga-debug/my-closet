@@ -4,6 +4,8 @@ const has=(text,pattern)=>pattern.test(text);
 export function roleOf(item){
  const category=fold(item.category),text=category+' '+fold(item.name);
  if(has(category,/look|outfit|conjunto completo/))return null;
+ if(category==='complementos')return 'accessory';
+ if(category==='botas')return 'shoes';
  if(has(text,/calzado|zapato|zapatilla|mocasin|sandalia|alpargata|chancla|botas?\b|botin|sneaker|loafer|shoe/))return 'shoes';
  if(has(text,/abrigo|plumifer|puffer|chaqueta|cazadora|blazer|americana|parka|gabardina|cardigan|chaquet[ao]n|jacket|coat/))return 'outer';
  if(has(text,/vestido|mono\b|jumpsuit|dress/))return 'onepiece';

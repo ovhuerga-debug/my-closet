@@ -1,4 +1,4 @@
-import {propose,roleOf,usable,scoreLook} from './combinations.mjs?v=20261112';
+import {propose,roleOf,usable,scoreLook} from './combinations.mjs?v=20261112e';
 
 export function initStylist({client,getCatalog,onSaved}){
  const $=id=>document.getElementById(id);

@@ -1,9 +1,9 @@
-import {createGarmentBatch} from './garment-batch.mjs?v=20261112d';
+import {createGarmentBatch} from './garment-batch.mjs?v=20261112e';
 import {createAlbum} from './look-album.mjs?v=20261112';
 import {captureDate} from './photo-dates.mjs?v=20261112';
-import {categories, categoryFor, fillCategorySelect} from './closet-catalog.mjs?v=20261112d';
+import {categories, categoryFor, fillCategorySelect} from './closet-catalog.mjs?v=20261112e';
 import {initPasswordAccess} from './password-access.mjs';
-import {initStylist} from './stylist.mjs?v=20261112';
+import {initStylist} from './stylist.mjs?v=20261112e';
 
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2';
 const supabase=createClient('https://tqphpcoqnlhzlxvzilxy.supabase.co','sb_publishable_xX9_VMIhz3C_JLTmhtWoPw_4KpWD73b',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
