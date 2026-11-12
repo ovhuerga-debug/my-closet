@@ -1,4 +1,4 @@
-import {createGarmentBatch} from './garment-batch.mjs?v=20261112e';
+import {createGarmentBatch} from './garment-batch.mjs?v=20261113';
 import {createAlbum} from './look-album.mjs?v=20261112';
 import {captureDate} from './photo-dates.mjs?v=20261112';
 import {categories, categoryFor, fillCategorySelect} from './closet-catalog.mjs?v=20261112e';

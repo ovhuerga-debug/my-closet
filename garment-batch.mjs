@@ -49,6 +49,7 @@ export function createGarmentBatch({client, compress, analyzePhoto, onSaved}) {
     else $('garmentPreview').removeAttribute('src');
     form.classList.toggle('hidden', !item);
     if (item) {
+      $('garmentStep').textContent = 'Foto ' + (queue.indexOf(item) + 1) + ' de ' + queue.length;
       fillCategorySelect($('gCategory'), item.draft.category);
       for (const [key, id] of Object.entries(fields)) $(id).value = item.draft[key];
     }
@@ -168,8 +169,23 @@ export function createGarmentBatch({client, compress, analyzePhoto, onSaved}) {
   }
 
   async function saveItems(items) {
+    const version = generation;
     await run(items, save, 'Guardando');
-    if (items.some(item => item.saved)) await onSaved();
+    if (version !== generation || !items.some(item => item.saved)) return;
+    if (active?.saved) {
+      const index = queue.indexOf(active);
+      const next = queue.slice(index + 1).find(item => !item.saved)
+        || queue.find(item => !item.saved);
+      showActive(next || null);
+      if (next) {
+        report(next.error || 'Ficha guardada. Ya puedes revisar la siguiente.');
+        form.focus({preventScroll: true});
+        form.scrollIntoView({block: 'start'});
+      } else {
+        report('Todas las prendas del lote están guardadas.');
+      }
+    }
+    await onSaved();
   }
 
   $('analyze').onclick = () => run(active && !active.saved ? [active] : [], analyze, 'Analizando');
