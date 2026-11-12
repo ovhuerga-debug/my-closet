@@ -1,9 +1,9 @@
 import {frameValues, seasonFor, seasonNames} from './photo-dates.mjs?v=20261112';
 
-export function createAlbum({client, readAll, removeImage, report}) {
+export function createAlbum({client, readAll, removeImage, describeLook, report}) {
   const $ = id => document.getElementById(id);
   const bucket = client.storage.from('closet-images');
-  const fields = 'id,image_path,created_at,captured_on,frame';
+  const fields = 'id,image_path,created_at,captured_on,frame,look_description';
   let rows = [];
   let owner = null;
   let selectedSeason = 'all';
@@ -12,6 +12,10 @@ export function createAlbum({client, readAll, removeImage, report}) {
   let generation = 0;
   const links = new Map();
   const dialog = $('frameDialog');
+  const descriptionDialog = $('lookDescriptionDialog');
+  const descriptionInput = $('lookDescription');
+  const descriptionStatus = $('lookDescriptionStatus');
+  let descriptionEdit = null;
   function season(row) {
     return /\/look-[^/]+\.jpg$/.test(row.image_path) ? 'generated' : seasonFor(row.captured_on);
   }
@@ -95,6 +99,9 @@ export function createAlbum({client, readAll, removeImage, report}) {
       const actions = document.createElement('div');
       actions.className = 'card-actions';
       actions.append(button('Ajustar', () => edit(row)));
+      if (season(row) !== 'generated') {
+        actions.append(button(row.look_description ? 'Ver descripción' : '✦ Analizar look', () => openDescription(row)));
+      }
       const remove = button('Eliminar', async () => {
         if (!confirm('¿Eliminar esta foto de tu álbum?')) return;
         remove.disabled = true;
@@ -175,6 +182,70 @@ export function createAlbum({client, readAll, removeImage, report}) {
   dialog.addEventListener('cancel', event => { if (saving) event.preventDefault(); });
   dialog.addEventListener('close', () => { activeEdit = null; $('frameImage').removeAttribute('src'); });
 
+  function setDescriptionBusy(busy) {
+    descriptionInput.disabled = busy;
+    $('generateLookDescription').disabled = busy;
+    $('saveLookDescription').disabled = busy;
+  }
+
+  function openDescription(row) {
+    if (descriptionDialog.open) return;
+    descriptionEdit = {id: row.id, owner};
+    descriptionInput.value = row.look_description || '';
+    descriptionStatus.textContent = '';
+    setDescriptionBusy(false);
+    descriptionDialog.showModal();
+    if (!row.look_description) generateDescription();
+  }
+
+  async function generateDescription() {
+    const edit = descriptionEdit;
+    if (!edit || descriptionInput.disabled) return;
+    setDescriptionBusy(true);
+    descriptionStatus.textContent = 'Analizando el conjunto…';
+    try {
+      const description = await describeLook(edit.id);
+      if (descriptionEdit !== edit) return;
+      descriptionInput.value = description;
+      descriptionStatus.textContent = 'Revisa el texto y guarda la descripción.';
+    } catch (error) {
+      if (descriptionEdit === edit) descriptionStatus.textContent = error.message;
+    } finally {
+      if (descriptionEdit === edit) setDescriptionBusy(false);
+    }
+  }
+
+  $('generateLookDescription').onclick = generateDescription;
+  $('lookDescriptionForm').onsubmit = async event => {
+    event.preventDefault();
+    const edit = descriptionEdit;
+    const description = descriptionInput.value.trim();
+    if (!edit || descriptionInput.disabled) return;
+    if (!description) {
+      descriptionStatus.textContent = 'Escribe o genera una descripción antes de guardar.';
+      return;
+    }
+    setDescriptionBusy(true);
+    descriptionStatus.textContent = 'Guardando descripción…';
+    try {
+      const {data, error} = await client.from('outfits').update({look_description: description})
+        .eq('id', edit.id).eq('user_id', edit.owner).select('id,look_description');
+      if (error || !data?.length) throw error || Error('No se pudo guardar la descripción.');
+      if (descriptionEdit !== edit) return;
+      const row = rows.find(row => row.id === edit.id);
+      if (row) row.look_description = data[0].look_description;
+      descriptionDialog.close();
+      render();
+      report('Descripción guardada en tu cuenta.');
+    } catch (error) {
+      if (descriptionEdit === edit) descriptionStatus.textContent = 'No se pudo guardar: ' + error.message;
+    } finally {
+      if (descriptionEdit === edit) setDescriptionBusy(false);
+    }
+  };
+  $('closeLookDescription').onclick = () => descriptionDialog.close();
+  descriptionDialog.addEventListener('close', () => { descriptionEdit = null; });
+
   async function load() {
     const {data:{user}} = await client.auth.getUser();
     if (!user) return;
@@ -197,6 +268,7 @@ export function createAlbum({client, readAll, removeImage, report}) {
     generation++;
     selectedSeason = 'all';
     if (dialog.open) dialog.close();
+    if (descriptionDialog.open) descriptionDialog.close();
     $('gallery').replaceChildren();
   }
   return {load, reset};

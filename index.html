@@ -132,7 +132,20 @@
   </div>
   <form method="dialog"><button type="submit" class="secondary">Cerrar</button></form>
 </dialog>
+<dialog id="lookDescriptionDialog" aria-labelledby="lookDescriptionTitle">
+  <form id="lookDescriptionForm">
+    <h2 id="lookDescriptionTitle">Descripción del look</h2>
+    <label for="lookDescription">Prendas, colores y estilo</label>
+    <textarea id="lookDescription" rows="6" maxlength="1200"></textarea>
+    <p id="lookDescriptionStatus" role="status"></p>
+    <div class="card-actions">
+      <button type="submit" id="saveLookDescription">Guardar descripción</button>
+      <button type="button" id="generateLookDescription" class="secondary">✦ Generar descripción</button>
+      <button type="button" id="closeLookDescription" class="quiet-button">Cerrar</button>
+    </div>
+  </form>
+</dialog>
 <script type="module" src="./install-app.mjs?v=20261112c"></script>
-<script type="module" src="./closet.js?v=20261113"></script>
+<script type="module" src="./closet.js?v=20261113b"></script>
 </body>
 </html>
