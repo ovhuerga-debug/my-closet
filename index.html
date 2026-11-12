@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon.svg">
-<link rel="stylesheet" href="./closet.css?v=20261112">
+<link rel="stylesheet" href="./closet.css?v=20261112b">
 <title>MY CLOSET</title>
 </head>
 <body>
@@ -51,13 +51,26 @@
 <section id="garmentsPanel" class="panel" hidden>
   <div class="section-heading">
     <div><span class="eyebrow">Inventario</span><h1>Prendas compradas</h1><p>Guarda cada compra por separado para poder combinarla.</p></div>
-    <button id="openGarmentUpload" type="button">＋ Añadir prenda</button>
+    <button id="openGarmentUpload" type="button">＋ Añadir prendas</button>
   </div>
   <details id="garmentUpload" class="workspace-card">
-    <summary>Añadir una prenda</summary>
-    <label for="garmentFile">Foto de la prenda</label>
-    <input id="garmentFile" type="file" accept="image/*,.heic,.heif">
-    <div class="card-actions"><button id="analyze" type="button">✦ Analizar prenda</button><button id="manual" class="secondary" type="button">Completar a mano</button></div>
+    <summary>Añadir prendas</summary>
+    <p>Selecciona varias fotos, una por prenda.</p>
+    <label for="garmentFile">Fotos de prendas</label>
+    <input id="garmentFile" type="file" accept="image/*,.heic,.heif" multiple>
+    <div id="garmentQueueControls" hidden>
+      <p id="garmentQueueSummary" role="status"></p>
+      <div class="card-actions">
+        <button id="analyzeBatch" type="button">✦ Analizar lote</button>
+        <button id="saveBatch" class="secondary" type="button">Guardar fichas listas</button>
+      </div>
+      <label for="garmentQueue">Revisar ficha</label>
+      <select id="garmentQueue"></select>
+      <div class="card-actions garment-item-actions">
+        <button id="analyze" type="button" class="secondary">Analizar esta foto</button>
+        <button id="removeGarmentFile" type="button" class="quiet-button">Quitar de la selección</button>
+      </div>
+    </div>
     <p id="aiStatus" role="status"></p>
     <form id="aiForm" class="hidden">
       <img id="garmentPreview" alt="Prenda seleccionada">
@@ -104,6 +117,6 @@
     <div class="card-actions"><button id="saveFrame" type="submit">Guardar ajuste</button><button id="resetFrame" type="button" class="secondary">Centrar</button><button id="cancelFrame" type="button" class="quiet-button">Cancelar</button></div>
   </form>
 </dialog>
-<script type="module" src="./closet.js?v=20261112"></script>
+<script type="module" src="./closet.js?v=20261112b"></script>
 </body>
 </html>
