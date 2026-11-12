@@ -1,1 +1,17 @@
-{"name":"MY CLOSET — Armario inteligente","short_name":"MY CLOSET","start_url":"./","display":"standalone","background_color":"#f5f1eb","theme_color":"#f5f1eb","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
+{
+  "id": "./",
+  "name": "MY CLOSET",
+  "short_name": "MY CLOSET",
+  "description": "Tu álbum de looks, prendas compradas y propuestas para combinar tu ropa.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f6f2",
+  "theme_color": "#f7f6f2",
+  "icons": [
+    {"src": "./icons/app-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "./icons/app-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "./icons/app-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

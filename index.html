@@ -5,15 +5,17 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f7f6f2">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="manifest" href="./manifest.webmanifest">
-<link rel="apple-touch-icon" href="./icon.svg">
-<link rel="stylesheet" href="./closet.css?v=20261112b">
+<link rel="manifest" href="./manifest.webmanifest?v=20261112c">
+<meta name="apple-mobile-web-app-title" content="MY CLOSET">
+<link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon.png">
+<link rel="stylesheet" href="./closet.css?v=20261112c">
 <title>MY CLOSET</title>
 </head>
 <body>
 <header class="site-header">
-  <div class="wordmark"><span class="monogram" aria-hidden="true">MC</span><span>MY CLOSET</span></div>
-  <span class="header-caption">Tu armario personal</span>
+  <div class="wordmark"><img class="brand-icon" src="./icons/app-192.png" alt="" width="44" height="44"><span>MY CLOSET</span></div>
+  <button id="installApp" class="secondary install-button" type="button">Instalar app</button>
 </header>
 <main>
 <p id="globalStatus" class="notice" role="status"></p>
@@ -117,6 +119,19 @@
     <div class="card-actions"><button id="saveFrame" type="submit">Guardar ajuste</button><button id="resetFrame" type="button" class="secondary">Centrar</button><button id="cancelFrame" type="button" class="quiet-button">Cancelar</button></div>
   </form>
 </dialog>
+<dialog id="installHelp" aria-labelledby="installTitle">
+  <div class="install-brand">
+    <img class="brand-icon" src="./icons/app-192.png" alt="" width="64" height="64">
+    <h2 id="installTitle">Instalar MY CLOSET</h2>
+  </div>
+  <div class="install-steps">
+    <p><strong>iPhone o iPad</strong><br>En Safari, toca Compartir y luego Añadir a pantalla de inicio. Si aparece, activa Abrir como app web.</p>
+    <p><strong>Mac</strong><br>En Safari, abre Compartir y selecciona Añadir al Dock.</p>
+    <p><strong>Chrome o Edge</strong><br>Busca Instalar en la barra de direcciones o en el menú del navegador.</p>
+  </div>
+  <form method="dialog"><button type="submit" class="secondary">Cerrar</button></form>
+</dialog>
+<script type="module" src="./install-app.mjs?v=20261112c"></script>
 <script type="module" src="./closet.js?v=20261112b"></script>
 </body>
 </html>
