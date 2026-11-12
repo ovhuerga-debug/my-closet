@@ -4,8 +4,8 @@ const has=(text,pattern)=>pattern.test(text);
 export function roleOf(item){
  const category=fold(item.category),text=category+' '+fold(item.name);
  if(has(category,/look|outfit|conjunto completo/))return null;
- if(has(text,/calzado|zapato|zapatilla|mocasin|sandalia|botas?\b|botin|sneaker|loafer|shoe/))return 'shoes';
- if(has(text,/abrigo|chaqueta|cazadora|blazer|americana|parka|gabardina|cardigan|chaquet[ao]n|jacket|coat/))return 'outer';
+ if(has(text,/calzado|zapato|zapatilla|mocasin|sandalia|alpargata|chancla|botas?\b|botin|sneaker|loafer|shoe/))return 'shoes';
+ if(has(text,/abrigo|plumifer|puffer|chaqueta|cazadora|blazer|americana|parka|gabardina|cardigan|chaquet[ao]n|jacket|coat/))return 'outer';
  if(has(text,/vestido|mono\b|jumpsuit|dress/))return 'onepiece';
  if(has(text,/pantalon|vaquero|jeans|bermuda|short|falda|trouser|skirt/))return 'bottom';
  if(has(text,/parte superior|camisa|camiseta|blusa|polo|jersey|sudadera|chaleco|top\b|shirt|sweater|hoodie/))return 'top';
@@ -42,7 +42,7 @@ export function scoreLook(items,{occasion='daily',weather='mild'}={}){
  if(weather==='cold'&&items.some(g=>roleOf(g)==='outer'))reasons.push('Incluye una capa exterior para el frío.');
  return {score,reasons};
 }
-export function usable(item,weather){const t=details(item);if(weather==='warm'&&has(t,/plumas|acolchado|lana gruesa|termic|abrigo/))return false;if(weather==='cold'&&has(t,/bermuda|short|sandalia/))return false;return true}
+export function usable(item,weather){const t=details(item);if(weather==='warm'&&has(t,/plumifer|plumas|acolchad|lana gruesa|termic|abrigo/))return false;if(weather==='cold'&&has(t,/bermuda|short|sandalia|alpargata|chancla|calzado de verano/))return false;return true}
 function shuffled(items,rng){const out=[...items];for(let i=out.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[out[i],out[j]]=[out[j],out[i]]}return out}
 export function propose(catalog,options={},rng=Math.random){
  const groups={top:[],bottom:[],onepiece:[],shoes:[],outer:[],accessory:[]};
@@ -71,5 +71,5 @@ export function propose(catalog,options={},rng=Math.random){
  const ranked=[...candidates.values()].sort((a,b)=>b.score-a.score),looks=[];
  // Prefer distinct outfits over small shoe changes when the catalog allows it.
  while(ranked.length&&looks.length<3){let index=ranked.findIndex(candidate=>looks.every(previous=>candidate.items.filter(g=>previous.items.some(p=>p.id===g.id)).length<Math.min(candidate.items.length,previous.items.length)-1));if(index<0)index=0;looks.push(ranked.splice(index,1)[0])}
- return {looks,message:looks.length+' propuesta(s) con tus prendas.',unclassified};
+ return {looks,message:looks.length + (looks.length === 1 ? ' propuesta con tus prendas.' : ' propuestas con tus prendas.'),unclassified};
 }

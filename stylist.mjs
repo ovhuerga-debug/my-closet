@@ -1,4 +1,4 @@
-import {propose,roleOf,usable,scoreLook} from './combinations.mjs';
+import {propose,roleOf,usable,scoreLook} from './combinations.mjs?v=20261112';
 
 export function initStylist({client,getCatalog,onSaved}){
  const $=id=>document.getElementById(id);
@@ -13,13 +13,13 @@ export function initStylist({client,getCatalog,onSaved}){
  const ticket=++version,container=$('lookResults');container.replaceChildren();
  for(const [index,look] of current.entries()){
  const card=document.createElement('article');card.className='suggested-look';
- const title=document.createElement('h3');title.textContent='Tu look '+String(index+1).padStart(2,'0');
+ const title=document.createElement('h3');title.textContent='Propuesta '+(index+1);
  const images=document.createElement('div');images.className='look-pieces';
  for(const item of look.items){const figure=document.createElement('figure'),img=document.createElement('img'),label=document.createElement('figcaption');img.alt=item.name||'Prenda de tu armario';img.loading='lazy';label.textContent=item.name||item.category;figure.append(img,label);images.append(figure);imageURL(item).then(url=>{if(ticket===version)img.src=url}).catch(()=>{if(ticket===version){img.hidden=true;label.textContent+=' · Foto no disponible'}})}
  const explanation=document.createElement('p');explanation.textContent=look.reasons.join(' ');
  const warnings=document.createElement('p');warnings.className='look-warning';warnings.textContent=look.warnings.join(' ');
  const actions=document.createElement('div');actions.className='look-actions';
- const save=action(saved.has(look.key)?'Guardado en Outfits':'♡ Guardar look',()=>saveLook(look,save));save.disabled=saved.has(look.key)||saving.has(look.key);
+ const save=action(saved.has(look.key)?'Guardado en Outfits':'Guardar look',()=>saveLook(look,save));save.disabled=saved.has(look.key)||saving.has(look.key);
  const alternatives=getCatalog().filter(g=>roleOf(g)==='shoes'&&usable(g,options.weather)&&!look.items.some(item=>item.id===g.id));
  const anchor=getCatalog().find(g=>g.id===options.anchorId);
  const swap=action('Cambiar calzado',()=>{const replacement=alternatives[Math.floor(Math.random()*alternatives.length)];if(!replacement)return;look.items=[...look.items.filter(g=>roleOf(g)!=='shoes'),replacement];look.key=look.items.map(g=>g.id).sort().join('|');Object.assign(look,scoreLook(look.items,options));look.warnings=look.warnings.filter(w=>!w.includes('calzado'));render()});swap.className='secondary';swap.disabled=!alternatives.length||roleOf(anchor||{})==='shoes';
@@ -48,6 +48,8 @@ export function initStylist({client,getCatalog,onSaved}){
  finally{saving.delete(key);await render()}
  }
  $('generateLooks').onclick=()=>generate().catch(e=>status('No se pudieron crear propuestas: '+e.message));
- for(const id of ['lookOccasion','lookWeather','anchorItem'])$(id).onchange=()=>{current=[];version++;$('lookResults').replaceChildren();status('Pulsa Combíname para aplicar tu elección.');};
+ for (const id of ['lookOccasion', 'lookWeather', 'anchorItem']) {
+  $(id).onchange = () => generate().catch(error => status('No se pudieron crear propuestas: ' + error.message));
+ }
  return {catalogChanged,reset};
 }
