@@ -1,4 +1,4 @@
-import {categoryFor, fillCategorySelect} from './closet-catalog.mjs?v=20261112';
+import {categoryFor, fillCategorySelect} from './closet-catalog.mjs?v=20261112d';
 
 const fields = {
   name: 'gName', category: 'gCategory', color: 'gColors',

@@ -1,4 +1,4 @@
-const CACHE='mycloset-install-v7-20261112';
+const CACHE='mycloset-sudadera-v8-20261112';
 self.addEventListener('install',event=>event.waitUntil(self.skipWaiting()));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('mycloset-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{const url=new URL(event.request.url);if(event.request.method!=='GET'||url.origin!==self.location.origin)return;if(!/\/(?:index\.html|manifest\.webmanifest|icons\/[^/]+\.png|closet\.(?:css|js)|(?:password-access|stylist|combinations|photo-dates|look-album|closet-catalog|garment-batch|install-app)\.mjs|)$/.test(url.pathname))return;event.respondWith(fetch(event.request).then(response=>{if(response.ok){const copy=response.clone();event.waitUntil(caches.open(CACHE).then(cache=>cache.put(event.request,copy)))}return response}).catch(()=>caches.match(event.request).then(response=>response||Response.error())))});

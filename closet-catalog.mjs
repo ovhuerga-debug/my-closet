@@ -2,7 +2,7 @@ import {fold} from './combinations.mjs?v=20261112';
 
 export const categories = [
   'Cazadora', 'Abrigo largo', 'Plumíferos', 'Camisas', 'Camisa manga corta',
-  'Jerseys', 'Polos', 'Camisetas', 'Pantalón', 'Vaquero', 'Bermudas',
+  'Jerseys', 'Sudadera', 'Polos', 'Camisetas', 'Pantalón', 'Vaquero', 'Bermudas',
   'Zapatillas', 'Zapatos', 'Calzado de verano'
 ];
 
@@ -11,6 +11,7 @@ export function categoryFor(item) {
   const rules = [
     ['Plumíferos', /plumifer|plumas|puffer|acolchad/],
     ['Abrigo largo', /abrigo|gabardina|trench|overcoat/],
+    ['Sudadera', /\b(?:sudaderas?|hoodies?|sweatshirts?)\b/],
     ['Cazadora', /cazadora|chaqueta|jacket|blazer|americana/],
     ['Calzado de verano', /sandalia|calzado de verano|alpargata|chancla/],
     ['Zapatillas', /zapatilla|sneaker|deportivas/],
@@ -21,7 +22,7 @@ export function categoryFor(item) {
     ['Camisa manga corta', /camisa.*manga corta|short.sleeve shirt/],
     ['Camisetas', /camiseta|t-shirt/],
     ['Polos', /\bpolos?\b/],
-    ['Jerseys', /jersey|jers[eé]is|sueter|sweater|cardigan|sudadera/],
+    ['Jerseys', /jersey|jers[eé]is|sueter|sweater|cardigan/],
     ['Camisas', /camisa|blusa|shirt/]
   ];
   return rules.find(([, pattern]) => pattern.test(text))?.[0] || '';
