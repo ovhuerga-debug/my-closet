@@ -357,5 +357,9 @@ export function createAlbum({client, readAll, removeImage, describeLook, report}
     if (descriptionDialog.open) descriptionDialog.close();
     $('gallery').replaceChildren();
   }
-  return {load, reset};
+  function getReferences() {
+    return rows.filter(row => season(row) !== 'generated' && row.look_description?.trim())
+      .map(row => ({...row, season: season(row), seasonLabel: seasonNames[season(row)]}));
+  }
+  return {load, reset, getReferences};
 }

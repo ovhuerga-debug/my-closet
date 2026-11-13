@@ -1,15 +1,15 @@
 import {createGarmentBatch} from './garment-batch.mjs?v=20261113';
-import {createAlbum} from './look-album.mjs?v=20261113c';
+import {createAlbum} from './look-album.mjs?v=20261113d';
 import {captureDate} from './photo-dates.mjs?v=20261112';
 import {categories, categoryFor, fillCategorySelect} from './closet-catalog.mjs?v=20261112e';
 import {initPasswordAccess} from './password-access.mjs';
-import {initStylist} from './stylist.mjs?v=20261112e';
+import {initStylist} from './stylist.mjs?v=20261113d';
 
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2';
 const supabase=createClient('https://tqphpcoqnlhzlxvzilxy.supabase.co','sb_publishable_xX9_VMIhz3C_JLTmhtWoPw_4KpWD73b',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $=id=>document.getElementById(id);let busy=false, stop=false, retryFiles=[], garments=[], stateRunning=false;
 const album = createAlbum({client: supabase, readAll, removeImage: removeUnusedImage, describeLook, report: message => { $('globalStatus').textContent = message; }});
-const stylist=initStylist({client:supabase,getCatalog:()=>garments,onSaved:load});
+const stylist=initStylist({client:supabase,getCatalog:()=>garments,getLookReferences:album.getReferences,onSaved:load});
 function msg(s){$('status').textContent=s;$('globalStatus').textContent=s}
 async function state(){if(stateRunning||busy)return;stateRunning=true;try{const {data:{user},error}=await supabase.auth.getUser();if(error)console.warn(error.message);$('login').classList.toggle('hidden',!!user);$('private').classList.toggle('hidden',!user);if(user){$('who').textContent=user.email||user.id;await Promise.all([load(),loadGarments()])}else{garments=[];garmentBatch.reset();album.reset();stylist.reset();$('garmentGallery').replaceChildren()}}catch(e){$('globalStatus').textContent='No se pudo conectar: '+e.message}finally{stateRunning=false}}
 const passwordAccess=initPasswordAccess({client:supabase,onSignedIn:state,redirectTo:()=>location.origin+location.pathname});

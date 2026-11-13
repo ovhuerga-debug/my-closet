@@ -1,6 +1,6 @@
-import {propose,roleOf,usable,scoreLook} from './combinations.mjs?v=20261112e';
+import {propose,roleOf,usable,scoreLook,prepareLookReferences} from './combinations.mjs?v=20261113d';
 
-export function initStylist({client,getCatalog,onSaved}){
+export function initStylist({client,getCatalog,getLookReferences,onSaved}){
  const $=id=>document.getElementById(id);
  let current=[],version=0,options={},saved=new Set(),saving=new Set();
  const imageCache=new Map();
@@ -23,10 +23,33 @@ export function initStylist({client,getCatalog,onSaved}){
  const alternatives=getCatalog().filter(g=>roleOf(g)==='shoes'&&usable(g,options.weather)&&!look.items.some(item=>item.id===g.id));
  const anchor=getCatalog().find(g=>g.id===options.anchorId);
  const swap=action('Cambiar calzado',()=>{const replacement=alternatives[Math.floor(Math.random()*alternatives.length)];if(!replacement)return;look.items=[...look.items.filter(g=>roleOf(g)!=='shoes'),replacement];look.key=look.items.map(g=>g.id).sort().join('|');Object.assign(look,scoreLook(look.items,options));look.warnings=look.warnings.filter(w=>!w.includes('calzado'));render()});swap.className='secondary';swap.disabled=!alternatives.length||roleOf(anchor||{})==='shoes';
- actions.append(save,swap);card.append(title,images,explanation,warnings,actions);container.append(card);
+ actions.append(save,swap);card.append(title,images,explanation);
+ if (look.reference) {
+   const reference = document.createElement('details');
+   reference.className = 'stylist-note';
+   const summary = document.createElement('summary');
+   const date = look.reference.captured_on?.split('-').reverse().join('/');
+   summary.textContent = 'Inspirado en un look de tu álbum' + (date ? ' · ' + look.reference.seasonLabel + ' · ' + date : '');
+   const description = document.createElement('p');
+   description.textContent = look.reference.look_description;
+   reference.append(summary, description);
+   card.append(reference);
+ }
+ card.append(warnings,actions);container.append(card);
  }
  }
- async function generate(){options={occasion:$('lookOccasion').value,weather:$('lookWeather').value,anchorId:$('anchorItem').value};const result=propose(getCatalog(),options);current=result.looks;status(result.message+(result.unclassified?' Hay '+result.unclassified+' ficha(s) cuya categoría debes completar.':''));await render();}
+ async function generate(){
+   const looks = getLookReferences();
+   options = {
+     occasion: $('lookOccasion').value, weather: $('lookWeather').value,
+     anchorId: $('anchorItem').value, references: prepareLookReferences(looks)
+   };
+   const result = propose(getCatalog(), options);
+   current = result.looks;
+   const albumStatus = looks.length ? ' Looks descritos consultados: ' + looks.length + '.' : ' Analiza tus fotos en Looks para que sirvan de referencia.';
+   status(result.message + albumStatus + (result.unclassified ? ' Hay '+result.unclassified+' ficha(s) cuya categoría debes completar.' : ''));
+   await render();
+ }
  function loadImage(url){return new Promise((resolve,reject)=>{const img=new Image();img.crossOrigin='anonymous';const timer=setTimeout(()=>{img.src='';reject(Error('La foto tarda demasiado en cargar. Inténtalo de nuevo.'))},20000);img.onload=()=>{clearTimeout(timer);resolve(img)};img.onerror=()=>{clearTimeout(timer);reject(Error('No se pudo cargar una de las fotos del look.'))};img.src=url})}
  async function collage(look){
  const photos=await Promise.all(look.items.map(async item=>loadImage(await imageURL(item))));

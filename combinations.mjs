@@ -1,4 +1,4 @@
-// Recommendations use catalog labels; they do not inspect or alter private images.
+// Recommendations use garment labels and descriptions saved in the photo album.
 export const fold=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
 const has=(text,pattern)=>pattern.test(text);
 export function roleOf(item){
@@ -17,12 +17,55 @@ export function roleOf(item){
 export function palette(item){
  const value=fold([item.color,...(Array.isArray(item.colors)?item.colors:[])].join(' '));
  const colors=[];
- for(const [name,regex] of Object.entries({negro:/negro|black/,blanco:/blanco|white|crudo|marfil/,gris:/gris|grey|gray/,beige:/beige|arena|camel|crema/,marron:/marron|brown|chocolate/,azul:/azul|blue|denim|marino/,verde:/verde|green|oliva/,rojo:/rojo|red|burdeos|granate/,rosa:/rosa|pink/,naranja:/naranja|orange/,amarillo:/amarillo|yellow/,morado:/morado|violeta|purple/}))if(regex.test(value))colors.push(name);
+ for(const [name,regex] of Object.entries({negro:/negr[oa]|black/,blanco:/blanc[oa]|white|crudo|marfil/,gris:/gris|grey|gray/,beige:/beige|arena|camel|crema/,marron:/marron|brown|chocolate/,azul:/azul|blue|denim|marino/,verde:/verde|green|oliva/,rojo:/roj[oa]|red|burdeos|granate/,rosa:/rosa|pink/,naranja:/naranja|orange/,amarillo:/amarill[oa]|yellow/,morado:/morad[oa]|violeta|purple/}))if(regex.test(value))colors.push(name);
  return colors;
 }
 const neutrals=new Set(['negro','blanco','gris','beige','marron','azul']);
 function details(item){return fold([item.name,item.style,item.description,item.pattern].join(' '))}
-export function scoreLook(items,{occasion='daily',weather='mild'}={}){
+const garmentTypes = [
+ ['camiseta', /\bcamisetas?\b/], ['camisa', /\bcamisas?\b/], ['polo', /\bpolos?\b/],
+ ['jersey', /\b(?:jersey|jers[eé]is|sueter)\b/], ['sudadera', /sudadera|hoodie/],
+ ['vaquero', /vaquer|jeans|tejan/], ['bermuda', /bermuda|pantalon corto/],
+ ['pantalon', /pantalon|chino/], ['falda', /falda/], ['vestido', /vestido/],
+ ['botas', /\bbotas?\b|botin/], ['mocasin', /mocasin/], ['zapatilla', /zapatilla|sneaker/],
+ ['sandalia', /sandalia|alpargata|chancla/], ['zapato', /zapato/],
+ ['abrigo', /abrigo|gabardina/], ['cazadora', /cazadora|chaqueta|blazer|americana/],
+ ['plumifero', /plumifer|puffer/], ['bolso', /bolso|mochila/], ['cinturon', /cinturon/],
+ ['bufanda', /bufanda|panuelo/], ['gorra', /gorra|sombrero/]
+];
+
+export function prepareLookReferences(looks) {
+  return looks.flatMap(look => {
+    const description = look.look_description?.trim();
+    if (!description) return [];
+    const pieces = fold(description).split(/[.;,\n]|\s+(?:y|con|junto a)\s+/).flatMap(fragment => {
+      const type = garmentTypes.find(([, pattern]) => pattern.test(fragment))?.[0];
+      return type ? [{type, colors: palette({color: fragment})}] : [];
+    });
+    return pieces.length ? [{...look, pieces}] : [];
+  });
+}
+
+function matchingReference(items, references, weather) {
+  if (!references.length) return null;
+  const pieces = items.map(item => ({
+    type: garmentTypes.find(([, pattern]) => pattern.test(fold(item.name)))?.[0]
+      || garmentTypes.find(([, pattern]) => pattern.test(fold(item.category)))?.[0],
+    colors: palette(item)
+  }));
+  const seasons = {cold: ['winter', 'fall'], warm: ['summer'], mild: ['spring', 'fall']};
+  let best = null;
+  for (const reference of references) {
+    const matches = pieces.filter(piece => piece.type && reference.pieces.some(other =>
+      other.type === piece.type && piece.colors.some(color => other.colors.includes(color))));
+    if (matches.length < 2) continue;
+    const bonus = Math.min(24, matches.length * 7) + (seasons[weather]?.includes(reference.season) ? 4 : 0);
+    if (!best || bonus > best.bonus) best = {reference, bonus};
+  }
+  return best;
+}
+
+export function scoreLook(items,{occasion='daily',weather='mild',references=[]}={}){
  let score=40;const colors=[...new Set(items.flatMap(palette))],accents=colors.filter(c=>!neutrals.has(c));
  if(colors.length&&accents.length<=1)score+=12;if(colors.length>4)score-=12;
  const patterns=items.filter(g=>has(fold(g.pattern),/raya|cuadro|floral|estampad|print|lunar/));if(patterns.length<=1)score+=5;else score-=8*(patterns.length-1);
@@ -42,7 +85,9 @@ export function scoreLook(items,{occasion='daily',weather='mild'}={}){
  if(occasion==='work')reasons.push('Se han priorizado las fichas con detalles de estilo formal.');
  if(occasion==='evening')reasons.push('Se han priorizado los detalles de estilo elegante de tus fichas.');
  if(weather==='cold'&&items.some(g=>roleOf(g)==='outer'))reasons.push('Incluye una capa exterior para el frío.');
- return {score,reasons};
+ const match = matchingReference(items, references, weather);
+ if (match) score += match.bonus;
+ return {score,reasons,reference:match?.reference ?? null};
 }
 export function usable(item,weather){const t=details(item);if(weather==='warm'&&has(t,/plumifer|plumas|acolchad|lana gruesa|termic|abrigo/))return false;if(weather==='cold'&&has(t,/bermuda|short|sandalia|alpargata|chancla|calzado de verano/))return false;return true}
 function shuffled(items,rng){const out=[...items];for(let i=out.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[out[i],out[j]]=[out[j],out[i]]}return out}
