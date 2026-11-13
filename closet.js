@@ -1,4 +1,5 @@
 import {extraPhotos, garmentPhotoURL, productPhoto} from './garment-photos.mjs?v=purchases1';
+import {initPurchaseBatch} from './purchase-batch.mjs?v=purchases2';
 import {createGarmentBatch} from './garment-batch.mjs?v=20261113';
 import {createAlbum} from './look-album.mjs?v=20261113d';
 import {captureDate} from './photo-dates.mjs?v=20261112';
@@ -12,9 +13,9 @@ const $=id=>document.getElementById(id);let busy=false, stop=false, retryFiles=[
 const album = createAlbum({client: supabase, readAll, removeImage: removeUnusedImage, describeLook, report: message => { $('globalStatus').textContent = message; }});
 const stylist=initStylist({client:supabase,getCatalog:()=>garments,getLookReferences:album.getReferences,onSaved:load});
 function msg(s){$('status').textContent=s;$('globalStatus').textContent=s}
-async function state(){if(stateRunning||busy)return;stateRunning=true;try{const {data:{user},error}=await supabase.auth.getUser();if(error)console.warn(error.message);$('login').classList.toggle('hidden',!!user);$('private').classList.toggle('hidden',!user);if(user){$('who').textContent=user.email||user.id;await Promise.all([load(),loadGarments()])}else{garments=[];garmentBatch.reset();album.reset();stylist.reset();$('garmentGallery').replaceChildren()}}catch(e){$('globalStatus').textContent='No se pudo conectar: '+e.message}finally{stateRunning=false}}
+async function state(){if(stateRunning||busy)return;stateRunning=true;try{const {data:{user},error}=await supabase.auth.getUser();if(error)console.warn(error.message);$('login').classList.toggle('hidden',!!user);$('private').classList.toggle('hidden',!user);if(user){$('who').textContent=user.email||user.id;await Promise.all([load(),loadGarments()])}else{garments=[];garmentBatch.reset();purchaseBatch.reset();album.reset();stylist.reset();$('garmentGallery').replaceChildren()}}catch(e){$('globalStatus').textContent='No se pudo conectar: '+e.message}finally{stateRunning=false}}
 const passwordAccess=initPasswordAccess({client:supabase,onSignedIn:state,redirectTo:()=>location.origin+location.pathname});
-$('logout').onclick=async()=>{if(garmentBatch.isWorking()){aiMsg('Espera a que termine el lote de prendas.');return}try{const {error}=await supabase.auth.signOut({scope:'local'});if(error)throw error;passwordAccess.clear();$('passwordStatus').textContent='';await state()}catch(error){$('globalStatus').textContent='No se pudo cerrar la sesión: '+error.message}};
+$('logout').onclick=async()=>{if(garmentBatch.isWorking()||purchaseBatch.isSaving()){aiMsg('Espera a que termine el lote de prendas.');return}try{const {error}=await supabase.auth.signOut({scope:'local'});if(error)throw error;passwordAccess.clear();$('passwordStatus').textContent='';await state()}catch(error){$('globalStatus').textContent='No se pudo cerrar la sesión: '+error.message}};
 $('refresh').onclick = load;
 function load() {
   return album.load().catch(error => msg('No se pudieron cargar los looks: ' + error.message));
@@ -123,6 +124,7 @@ async function analyzeGarmentPhoto(blob, stillActive) {
   return result;
 }
 const garmentBatch = createGarmentBatch({client: supabase, compress: compressed, analyzePhoto: analyzeGarmentPhoto, onSaved: loadGarments});
+const purchaseBatch = initPurchaseBatch({client:supabase, getCatalog:() => garments, refresh:loadGarments});
 $('refreshGarments').onclick=loadGarments;
 async function loadGarments(){
   const {data:{user}}=await supabase.auth.getUser();if(!user)return;
