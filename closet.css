@@ -21,6 +21,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 label{display:block;font-size:.86rem;font-weight:700}
 input,select,textarea{display:block;width:100%;margin:6px 0 13px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--ink);background:#fff;min-height:44px}
 input[type=range]{padding:0;accent-color:#6656b3}
+#purchaseReview{list-style:none;padding:0}
+#purchaseReview:empty{display:none}
+#purchaseReview label{display:flex;align-items:center;gap:.5rem}
+#purchaseReview input{width:auto;min-height:44px;margin:0}
 textarea{resize:vertical}
 summary{font-weight:700;cursor:pointer}
 summary + *{margin-top:14px}
