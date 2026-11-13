@@ -1,4 +1,5 @@
-import {propose,roleOf,usable,scoreLook,prepareLookReferences} from './combinations.mjs?v=20261113d';
+import {occasions} from './dress-code.mjs?v=20261113e';
+import {propose,roleOf,usableForPlan,scoreLook,prepareLookReferences} from './combinations.mjs?v=20261113e';
 
 export function initStylist({client,getCatalog,getLookReferences,onSaved}){
  const $=id=>document.getElementById(id);
@@ -20,7 +21,7 @@ export function initStylist({client,getCatalog,getLookReferences,onSaved}){
  const warnings=document.createElement('p');warnings.className='look-warning';warnings.textContent=look.warnings.join(' ');
  const actions=document.createElement('div');actions.className='look-actions';
  const save=action(saved.has(look.key)?'Guardado en Outfits':'Guardar look',()=>saveLook(look,save));save.disabled=saved.has(look.key)||saving.has(look.key);
- const alternatives=getCatalog().filter(g=>roleOf(g)==='shoes'&&usable(g,options.weather)&&!look.items.some(item=>item.id===g.id));
+ const alternatives=getCatalog().filter(g=>roleOf(g)==='shoes'&&usableForPlan(g,options)&&!look.items.some(item=>item.id===g.id));
  const anchor=getCatalog().find(g=>g.id===options.anchorId);
  const swap=action('Cambiar calzado',()=>{const replacement=alternatives[Math.floor(Math.random()*alternatives.length)];if(!replacement)return;look.items=[...look.items.filter(g=>roleOf(g)!=='shoes'),replacement];look.key=look.items.map(g=>g.id).sort().join('|');Object.assign(look,scoreLook(look.items,options));look.warnings=look.warnings.filter(w=>!w.includes('calzado'));render()});swap.className='secondary';swap.disabled=!alternatives.length||roleOf(anchor||{})==='shoes';
  actions.append(save,swap);card.append(title,images,explanation);
@@ -39,9 +40,12 @@ export function initStylist({client,getCatalog,getLookReferences,onSaved}){
  }
  }
  async function generate(){
+   const occasion = $('lookOccasion').value;
+   $('lookDressCode').disabled = occasion === 'gym';
+   $('occasionHint').textContent = occasions[occasion]?.hint || '';
    const looks = getLookReferences();
    options = {
-     occasion: $('lookOccasion').value, weather: $('lookWeather').value,
+     occasion, code: $('lookDressCode').value, weather: $('lookWeather').value,
      anchorId: $('anchorItem').value, references: prepareLookReferences(looks)
    };
    const result = propose(getCatalog(), options);
@@ -71,7 +75,7 @@ export function initStylist({client,getCatalog,getLookReferences,onSaved}){
  finally{saving.delete(key);await render()}
  }
  $('generateLooks').onclick=()=>generate().catch(e=>status('No se pudieron crear propuestas: '+e.message));
- for (const id of ['lookOccasion', 'lookWeather', 'anchorItem']) {
+ for (const id of ['lookOccasion', 'lookDressCode', 'lookWeather', 'anchorItem']) {
   $(id).onchange = () => generate().catch(error => status('No se pudieron crear propuestas: ' + error.message));
  }
  return {catalogChanged,reset};

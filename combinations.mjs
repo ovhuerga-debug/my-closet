@@ -1,3 +1,5 @@
+import {dressCode, fitsDressCode, occasionScore} from './dress-code.mjs?v=20261113e';
+
 // Recommendations use garment labels and descriptions saved in the photo album.
 export const fold=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
 const has=(text,pattern)=>pattern.test(text);
@@ -65,15 +67,13 @@ function matchingReference(items, references, weather) {
   return best;
 }
 
-export function scoreLook(items,{occasion='daily',weather='mild',references=[]}={}){
+export function scoreLook(items,{occasion='daily',weather='mild',references=[],code='auto'}={}){
+ const protocol = dressCode(occasion, code);
  let score=40;const colors=[...new Set(items.flatMap(palette))],accents=colors.filter(c=>!neutrals.has(c));
  if(colors.length&&accents.length<=1)score+=12;if(colors.length>4)score-=12;
  const patterns=items.filter(g=>has(fold(g.pattern),/raya|cuadro|floral|estampad|print|lunar/));if(patterns.length<=1)score+=5;else score-=8*(patterns.length-1);
  for(const item of items){const t=details(item);
- if(occasion==='work'&&has(t,/formal|sastr|camisa|mocasin|blazer|americana/))score+=7;
- if(occasion==='work'&&has(t,/deportiv|running|bermuda|chandal/))score-=9;
- if(occasion==='evening'&&has(t,/elegante|vestido|seda|mocasin|blazer/))score+=7;
- if(occasion==='daily'&&has(t,/casual|vaquero|camiseta|zapatilla|polo/))score+=4;
+ score += occasionScore(t, roleOf(item), occasion, protocol);
  if(weather==='cold'&&has(t,/lana|abrigo|jersey|bota|acolchado/))score+=7;
  if(weather==='warm'&&has(t,/lino|algodon|liger|sandalia|bermuda/))score+=6;
  }
@@ -82,32 +82,45 @@ export function scoreLook(items,{occasion='daily',weather='mild',references=[]}=
  else if(accents.length===1)reasons.push('El '+accents[0]+' aporta el toque de color sobre una base neutra.');
  else reasons.push('Una propuesta para probar con las prendas que tienes.');
  if(patterns.length===1)reasons.push('Una sola prenda estampada concentra la atención.');
- if(occasion==='work')reasons.push('Se han priorizado las fichas con detalles de estilo formal.');
- if(occasion==='evening')reasons.push('Se han priorizado los detalles de estilo elegante de tus fichas.');
+ if(protocol==='business')reasons.push('Priorizamos prendas de oficina.');
+ if(protocol==='smart')reasons.push('Priorizamos prendas arregladas para el plan.');
+ if(protocol==='sport')reasons.push('Priorizamos ropa de entrenamiento y zapatillas cerradas.');
  if(weather==='cold'&&items.some(g=>roleOf(g)==='outer'))reasons.push('Incluye una capa exterior para el frío.');
  const match = matchingReference(items, references, weather);
- if (match) score += match.bonus;
+ if (match) score += protocol === 'casual' ? match.bonus : match.bonus / 2;
  return {score,reasons,reference:match?.reference ?? null};
 }
 export function usable(item,weather){const t=details(item);if(weather==='warm'&&has(t,/plumifer|plumas|acolchad|lana gruesa|termic|abrigo/))return false;if(weather==='cold'&&has(t,/bermuda|short|sandalia|alpargata|chancla|calzado de verano/))return false;return true}
+export function usableForPlan(item, options) {
+ return usable(item, options.weather) && fitsDressCode(item, roleOf(item),
+   fold([item.category, details(item)].join(' ')), dressCode(options.occasion, options.code));
+}
 function shuffled(items,rng){const out=[...items];for(let i=out.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[out[i],out[j]]=[out[j],out[i]]}return out}
 export function propose(catalog,options={},rng=Math.random){
  const groups={top:[],bottom:[],onepiece:[],shoes:[],outer:[],accessory:[]};
  const unique=new Set();let unclassified=0;
- for(const item of catalog){if(!item.id||!item.image_path)continue;const role=roleOf(item);if(!role){unclassified++;continue}const key=item.image_path;if(unique.has(key))continue;unique.add(key);if(usable(item,options.weather))groups[role].push(item)}
+ for(const item of catalog){if(!item.id||!item.image_path)continue;const role=roleOf(item);if(!role){unclassified++;continue}const key=item.image_path;if(unique.has(key))continue;unique.add(key);if(usableForPlan(item,options))groups[role].push(item)}
  const anchor=catalog.find(g=>g.id===options.anchorId),anchorRole=anchor&&roleOf(anchor);
  if(anchor&&!anchorRole)return {looks:[],message:'Completa la categoría de la prenda de partida para poder combinarla.',unclassified};
  if(anchor&&!usable(anchor,options.weather))return {looks:[],message:'La prenda de partida no encaja con la temperatura elegida. Cambia la temperatura o la prenda.',unclassified};
+ if(anchor&&!usableForPlan(anchor,options))return {looks:[],message:'La prenda de partida no encaja con el código de vestimenta elegido. Prueba con otra prenda.',unclassified};
  if(anchor){groups[anchorRole]=[anchor]}
+ const protocol = dressCode(options.occasion, options.code);
+ if(protocol === 'sport' && (!groups.top.length || !groups.bottom.length || !groups.shoes.length)) {
+   return {looks:[],message:'Para el gimnasio, añade una parte superior de entrenamiento, un pantalón deportivo y zapatillas cerradas.',unclassified};
+ }
+ if(protocol === 'formal' && (!groups.shoes.length || (!groups.onepiece.length && !groups.outer.length))) {
+   return {looks:[],message:'Faltan prendas para el código formal. Revisa que tengas calzado de vestir y un vestido o una americana con pantalón de vestir.',unclassified};
+ }
  for(const role of Object.keys(groups))groups[role]=shuffled(groups[role],rng);
- const modes=[];if(groups.top.length&&groups.bottom.length&&anchorRole!=='onepiece')modes.push('separates');if(groups.onepiece.length&&!['top','bottom'].includes(anchorRole))modes.push('onepiece');
+ const modes=[];if(groups.top.length&&groups.bottom.length&&anchorRole!=='onepiece'&&(protocol!=='formal'||groups.outer.length))modes.push('separates');if(groups.onepiece.length&&!['top','bottom'].includes(anchorRole))modes.push('onepiece');
  if(!modes.length)return {looks:[],message:'Para empezar, añade una parte superior y un pantalón o falda, o un vestido. Revisa las categorías de tus fichas.',unclassified};
  const candidates=new Map();
  const pick=role=>groups[role][Math.floor(rng()*groups[role].length)];
  for(let attempt=0;attempt<300;attempt++){
  const mode=modes[attempt%modes.length];const items=mode==='separates'?[pick('top'),pick('bottom')]:[pick('onepiece')];
  if(groups.shoes.length)items.push(pick('shoes'));
- if(groups.outer.length&&(options.weather==='cold'||anchorRole==='outer'))items.push(pick('outer'));
+ if(groups.outer.length&&(options.weather==='cold'||anchorRole==='outer'||protocol==='formal'&&mode==='separates'))items.push(pick('outer'));
  if(anchorRole==='accessory')items.push(anchor);
  if(anchor&&!items.some(g=>g.id===anchor.id))continue;
  const key=items.map(g=>g.id).sort().join('|');if(candidates.has(key))continue;
