@@ -1,3 +1,4 @@
+import {garmentPhotoURL} from './garment-photos.mjs?v=purchases1';
 import {occasions} from './dress-code.mjs?v=20261113e';
 import {propose,roleOf,scoreLook,prepareLookReferences,replacementChoices} from './combinations.mjs?v=20261113f';
 
@@ -8,7 +9,7 @@ export function initStylist({client,getCatalog,getLookReferences,onSaved}){
  const status=text=>{$('stylistStatus').textContent=text};
  function reset(){version++;current=[];saved.clear();imageCache.clear();$('lookResults').replaceChildren();$('anchorItem').replaceChildren(new Option('Sorpréndeme',''));status('Entra para combinar tus prendas.');}
  function catalogChanged(){const select=$('anchorItem'),selected=select.value;select.replaceChildren(new Option('Sorpréndeme',''));for(const g of getCatalog().filter(g=>roleOf(g)))select.add(new Option(g.name||g.category,g.id));select.value=getCatalog().some(g=>g.id===selected)?selected:'';current=[];version++;$('lookResults').replaceChildren();status(getCatalog().length?'Tu armario está listo. Pulsa Combíname.':'Añade prendas con sus categorías para crear tu primer look.');}
- async function imageURL(item){const cached=imageCache.get(item.image_path);if(cached&&cached.expires>Date.now())return cached.url;const result=await client.storage.from('closet-images').createSignedUrl(item.image_path,3600);if(result.error)throw result.error;if(!result.data?.signedUrl)throw Error('Fotografía no disponible.');imageCache.set(item.image_path,{url:result.data.signedUrl,expires:Date.now()+3000000});return result.data.signedUrl;}
+ async function imageURL(item){const cached=imageCache.get(item.image_path);if(cached&&cached.expires>Date.now())return cached.url;const url=await garmentPhotoURL(client.storage.from('closet-images'),item.image_path);imageCache.set(item.image_path,{url,expires:Date.now()+3000000});return url;}
  function action(label,handler){const button=document.createElement('button');button.type='button';button.textContent=label;button.onclick=handler;return button}
  function piecePicker(look, proposalIndex) {
    const picker = document.createElement('details');
