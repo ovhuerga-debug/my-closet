@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="MY CLOSET">
 <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon.png">
-<link rel="stylesheet" href="./closet.css?v=20261112c">
+<link rel="stylesheet" href="./closet.css?v=purchases2">
 <title>MY CLOSET</title>
 </head>
 <body>
@@ -93,6 +93,15 @@
       <button id="saveGarment" type="submit">Guardar prenda</button>
     </form>
   </details>
+  <details id="purchaseUpload" class="workspace-card">
+    <summary>Importar compras</summary>
+    <p>Carga el lote preparado a partir de tus pedidos o tickets de Zara y Pull&amp;Bear. Revisa las prendas antes de guardarlas.</p>
+    <label for="purchaseFile">Archivo de compras de MY CLOSET</label>
+    <input id="purchaseFile" type="file" accept=".json,application/json">
+    <ul id="purchaseReview"></ul>
+    <p id="purchaseStatus" role="status"></p>
+    <button id="savePurchases" type="button" disabled>Guardar compras seleccionadas</button>
+  </details>
   <div class="gallery-toolbar"><span><strong id="garmentCount">0</strong> prendas</span><button id="refreshGarments" class="quiet-button" type="button">Actualizar</button></div>
   <div class="toolbar">
     <label for="search">Buscar<input type="search" id="search" placeholder="Nombre, color o descripción"></label>
@@ -151,6 +160,6 @@
   </form>
 </dialog>
 <script type="module" src="./install-app.mjs?v=20261112c"></script>
-<script type="module" src="./closet.js?v=purchases1"></script>
+<script type="module" src="./closet.js?v=purchases2"></script>
 </body>
 </html>
