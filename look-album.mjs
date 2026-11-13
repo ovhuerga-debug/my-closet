@@ -16,6 +16,10 @@ export function createAlbum({client, readAll, removeImage, describeLook, report}
   const descriptionInput = $('lookDescription');
   const descriptionStatus = $('lookDescriptionStatus');
   let descriptionEdit = null;
+  let descriptionBatch = null;
+  const batchButton = $('analyzePendingLooks');
+  const stopButton = $('stopLookAnalysis');
+  const batchStatus = $('lookAnalysisStatus');
   function season(row) {
     return /\/look-[^/]+\.jpg$/.test(row.image_path) ? 'generated' : seasonFor(row.captured_on);
   }
@@ -46,6 +50,7 @@ export function createAlbum({client, readAll, removeImage, describeLook, report}
   }
 
   function render() {
+    batchButton.disabled = !owner || !!descriptionBatch;
     const token = ++generation;
     const gallery = $('gallery');
     gallery.replaceChildren();
@@ -190,6 +195,10 @@ export function createAlbum({client, readAll, removeImage, describeLook, report}
 
   function openDescription(row) {
     if (descriptionDialog.open) return;
+    if (descriptionBatch && !row.look_description) {
+      report('El análisis en lote está en marcha. Puedes detenerlo para analizar esta foto por separado.');
+      return;
+    }
     descriptionEdit = {id: row.id, owner};
     descriptionInput.value = row.look_description || '';
     descriptionStatus.textContent = '';
@@ -246,6 +255,79 @@ export function createAlbum({client, readAll, removeImage, describeLook, report}
   $('closeLookDescription').onclick = () => descriptionDialog.close();
   descriptionDialog.addEventListener('close', () => { descriptionEdit = null; });
 
+  stopButton.onclick = () => {
+    if (!descriptionBatch) return;
+    descriptionBatch.stop = true;
+    stopButton.disabled = true;
+    batchStatus.textContent = 'Se detendrá al terminar la foto actual.';
+  };
+
+  batchButton.onclick = async () => {
+    if (!owner || descriptionBatch) return;
+    const batch = {owner, stop: false};
+    descriptionBatch = batch;
+    batchButton.disabled = true;
+    stopButton.hidden = false;
+    stopButton.disabled = false;
+    batchStatus.textContent = 'Buscando fotos pendientes…';
+    let saved = 0;
+    let skipped = 0;
+    let failures = 0;
+    let total = 0;
+    let lastError = '';
+    const isCurrent = () => descriptionBatch === batch && owner === batch.owner;
+    try {
+      const latest = await readAll('outfits', fields);
+      if (latest.error) throw latest.error;
+      if (!isCurrent()) return;
+      const pending = latest.data.filter(row => season(row) !== 'generated' && !row.look_description?.trim());
+      total = pending.length;
+      for (const [index, row] of pending.entries()) {
+        if (!isCurrent() || batch.stop) break;
+        batchStatus.textContent = 'Analizando ' + (index + 1) + ' de ' + total + ' · ' + saved + ' guardadas';
+        try {
+          const description = await describeLook(row.id);
+          if (!isCurrent()) return;
+          // Match the original blank value so a concurrent edit is preserved.
+          const update = client.from('outfits').update({look_description: description})
+            .eq('id', row.id).eq('user_id', batch.owner);
+          const condition = row.look_description == null
+            ? update.is('look_description', null)
+            : update.eq('look_description', row.look_description);
+          const {data, error} = await condition.select('id,look_description');
+          if (error) throw error;
+          if (!isCurrent()) return;
+          if (!data?.length) {
+            skipped++;
+            continue;
+          }
+          const displayed = rows.find(item => item.id === row.id);
+          if (displayed) displayed.look_description = data[0].look_description;
+          saved++;
+        } catch (error) {
+          if (!isCurrent()) return;
+          failures++;
+          lastError = error.message;
+          if ([401, 403, 429, 502, 503, 504].includes(error.status) || error instanceof TypeError) break;
+        }
+      }
+    } catch (error) {
+      lastError = error.message;
+    } finally {
+      if (isCurrent()) {
+        descriptionBatch = null;
+        stopButton.hidden = true;
+        render();
+        const remaining = total - saved - skipped;
+        batchStatus.textContent = total
+          ? saved + ' guardadas · ' + remaining + ' pendientes' +
+            (skipped ? ' · ' + skipped + ' omitidas' : '') +
+            (failures ? ' · ' + failures + ' con error' : '') + (lastError ? '. ' + lastError : '.')
+          : lastError || 'No hay fotos pendientes de descripción.';
+      }
+    }
+  };
+
   async function load() {
     const {data:{user}} = await client.auth.getUser();
     if (!user) return;
@@ -262,6 +344,10 @@ export function createAlbum({client, readAll, removeImage, describeLook, report}
 
   function reset() {
     owner = null;
+    descriptionBatch = null;
+    batchButton.disabled = true;
+    stopButton.hidden = true;
+    batchStatus.textContent = '';
     rows = [];
     links.clear();
     observer?.disconnect();

@@ -47,6 +47,11 @@
     <button id="refresh" class="quiet-button" type="button">Actualizar</button>
   </div>
   <div id="seasonFilters" class="season-filters" role="group" aria-label="Temporada"></div>
+  <div class="card-actions">
+    <button id="analyzePendingLooks" type="button" class="secondary" disabled>✦ Analizar fotos pendientes</button>
+    <button id="stopLookAnalysis" type="button" class="quiet-button" hidden>Detener análisis</button>
+  </div>
+  <p id="lookAnalysisStatus" class="notice" role="status"></p>
   <div id="gallery" class="album-grid"></div>
 </section>
 
@@ -146,6 +151,6 @@
   </form>
 </dialog>
 <script type="module" src="./install-app.mjs?v=20261112c"></script>
-<script type="module" src="./closet.js?v=20261113b"></script>
+<script type="module" src="./closet.js?v=20261113c"></script>
 </body>
 </html>

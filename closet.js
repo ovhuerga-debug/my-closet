@@ -1,5 +1,5 @@
 import {createGarmentBatch} from './garment-batch.mjs?v=20261113';
-import {createAlbum} from './look-album.mjs?v=20261113b';
+import {createAlbum} from './look-album.mjs?v=20261113c';
 import {captureDate} from './photo-dates.mjs?v=20261112';
 import {categories, categoryFor, fillCategorySelect} from './closet-catalog.mjs?v=20261112e';
 import {initPasswordAccess} from './password-access.mjs';
@@ -96,9 +96,9 @@ async function describeLook(outfitId) {
     body: JSON.stringify({outfitId})
   });
   const result = await response.json().catch(() => ({}));
-  if (response.status === 401) throw Error('Vuelve a iniciar sesión para analizar tu look.');
   if (!response.ok || typeof result.description !== 'string' || !result.description.trim()) {
-    throw Error(result.error || 'No se pudo generar la descripción. Inténtalo de nuevo.');
+    const message = response.status === 401 ? 'Vuelve a iniciar sesión para analizar tu look.' : result.error;
+    throw Object.assign(Error(message || 'No se pudo generar la descripción. Inténtalo de nuevo.'), {status: response.status});
   }
   return result.description;
 }
