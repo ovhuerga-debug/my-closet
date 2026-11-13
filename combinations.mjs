@@ -95,6 +95,23 @@ export function usableForPlan(item, options) {
  return usable(item, options.weather) && fitsDressCode(item, roleOf(item),
    fold([item.category, details(item)].join(' ')), dressCode(options.occasion, options.code));
 }
+
+export function replacementChoices(catalog, items, index, options) {
+ const original = items[index];
+ if (!original || original.id === options.anchorId) return [];
+ const role = roleOf(original);
+ if (!role) return [];
+ const usedImages = new Set(items.map(item => item.image_path));
+ return catalog.filter(item => item.id && item.image_path && !usedImages.has(item.image_path)
+   && roleOf(item) === role && usableForPlan(item, options))
+   .map(item => {
+     const combination = [...items];
+     combination[index] = item;
+     return {item, score: scoreLook(combination, options).score};
+   })
+   .sort((a,b) => b.score - a.score)
+   .map(({item}) => item);
+}
 function shuffled(items,rng){const out=[...items];for(let i=out.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[out[i],out[j]]=[out[j],out[i]]}return out}
 export function propose(catalog,options={},rng=Math.random){
  const groups={top:[],bottom:[],onepiece:[],shoes:[],outer:[],accessory:[]};

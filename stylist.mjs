@@ -1,5 +1,5 @@
 import {occasions} from './dress-code.mjs?v=20261113e';
-import {propose,roleOf,usableForPlan,scoreLook,prepareLookReferences} from './combinations.mjs?v=20261113e';
+import {propose,roleOf,scoreLook,prepareLookReferences,replacementChoices} from './combinations.mjs?v=20261113f';
 
 export function initStylist({client,getCatalog,getLookReferences,onSaved}){
  const $=id=>document.getElementById(id);
@@ -10,6 +10,47 @@ export function initStylist({client,getCatalog,getLookReferences,onSaved}){
  function catalogChanged(){const select=$('anchorItem'),selected=select.value;select.replaceChildren(new Option('Sorpréndeme',''));for(const g of getCatalog().filter(g=>roleOf(g)))select.add(new Option(g.name||g.category,g.id));select.value=getCatalog().some(g=>g.id===selected)?selected:'';current=[];version++;$('lookResults').replaceChildren();status(getCatalog().length?'Tu armario está listo. Pulsa Combíname.':'Añade prendas con sus categorías para crear tu primer look.');}
  async function imageURL(item){const cached=imageCache.get(item.image_path);if(cached&&cached.expires>Date.now())return cached.url;const result=await client.storage.from('closet-images').createSignedUrl(item.image_path,3600);if(result.error)throw result.error;if(!result.data?.signedUrl)throw Error('Fotografía no disponible.');imageCache.set(item.image_path,{url:result.data.signedUrl,expires:Date.now()+3000000});return result.data.signedUrl;}
  function action(label,handler){const button=document.createElement('button');button.type='button';button.textContent=label;button.onclick=handler;return button}
+ function piecePicker(look, proposalIndex) {
+   const picker = document.createElement('details');
+   picker.className = 'stylist-note';
+   picker.id = 'piecePicker-' + proposalIndex;
+   const summary = document.createElement('summary');
+   summary.textContent = 'Cambiar una pieza';
+   const label = document.createElement('label');
+   label.textContent = 'Alternativas compatibles';
+   const select = document.createElement('select');
+   select.append(new Option('Elige una alternativa', ''));
+   const choices = new Map();
+   look.items.forEach((original, index) => {
+     const alternatives = replacementChoices(getCatalog(), look.items, index, options);
+     if (!alternatives.length) return;
+     const group = document.createElement('optgroup');
+     group.label = 'En lugar de ' + (original.name || original.category);
+     for (const item of alternatives) {
+       const key = index + ':' + item.id;
+       choices.set(key, {index, item});
+       group.append(new Option(item.name || item.category, key));
+     }
+     select.append(group);
+   });
+   if (!choices.size) return null;
+   select.onchange = async () => {
+     const replacement = choices.get(select.value);
+     if (!replacement || saving.has(look.key)) return;
+     look.items[replacement.index] = replacement.item;
+     look.key = look.items.map(item => item.id).sort().join('|');
+     Object.assign(look, scoreLook(look.items, options));
+     await render();
+     const updated = $(picker.id);
+     if (updated) {
+       updated.open = true;
+       updated.querySelector('summary').focus({preventScroll:true});
+     }
+   };
+   label.append(select);
+   picker.append(summary, label);
+   return picker;
+ }
  async function render(){
  const ticket=++version,container=$('lookResults');container.replaceChildren();
  for(const [index,look] of current.entries()){
@@ -21,10 +62,9 @@ export function initStylist({client,getCatalog,getLookReferences,onSaved}){
  const warnings=document.createElement('p');warnings.className='look-warning';warnings.textContent=look.warnings.join(' ');
  const actions=document.createElement('div');actions.className='look-actions';
  const save=action(saved.has(look.key)?'Guardado en Outfits':'Guardar look',()=>saveLook(look,save));save.disabled=saved.has(look.key)||saving.has(look.key);
- const alternatives=getCatalog().filter(g=>roleOf(g)==='shoes'&&usableForPlan(g,options)&&!look.items.some(item=>item.id===g.id));
- const anchor=getCatalog().find(g=>g.id===options.anchorId);
- const swap=action('Cambiar calzado',()=>{const replacement=alternatives[Math.floor(Math.random()*alternatives.length)];if(!replacement)return;look.items=[...look.items.filter(g=>roleOf(g)!=='shoes'),replacement];look.key=look.items.map(g=>g.id).sort().join('|');Object.assign(look,scoreLook(look.items,options));look.warnings=look.warnings.filter(w=>!w.includes('calzado'));render()});swap.className='secondary';swap.disabled=!alternatives.length||roleOf(anchor||{})==='shoes';
- actions.append(save,swap);card.append(title,images,explanation);
+ const picker = piecePicker(look, index);
+ actions.append(save);card.append(title,images,explanation);
+ if (picker) card.append(picker);
  if (look.reference) {
    const reference = document.createElement('details');
    reference.className = 'stylist-note';
@@ -78,5 +118,12 @@ export function initStylist({client,getCatalog,getLookReferences,onSaved}){
  for (const id of ['lookOccasion', 'lookDressCode', 'lookWeather', 'anchorItem']) {
   $(id).onchange = () => generate().catch(error => status('No se pudieron crear propuestas: ' + error.message));
  }
- return {catalogChanged,reset};
+ function startWith(item) {
+   const select = $('anchorItem');
+   select.value = item.id;
+   if (select.value !== item.id) return;
+   document.querySelector('nav [data-go="looksPanel"]').click();
+   generate().catch(error => status('No se pudieron crear propuestas: ' + error.message));
+ }
+ return {catalogChanged,reset,startWith};
 }
