@@ -1,4 +1,4 @@
-import {dressCode, fitsDressCode, occasionScore} from './dress-code.mjs?v=20261113e';
+import {dressCode, fitsDressCode, occasionScore} from './dress-code.mjs?v=travel1';
 
 // Recommendations use garment labels and descriptions saved in the photo album.
 export const fold=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
@@ -9,7 +9,7 @@ export function roleOf(item){
  if(category==='complementos')return 'accessory';
  if(category==='botas')return 'shoes';
  if(has(text,/calzado|zapato|zapatilla|mocasin|sandalia|alpargata|chancla|botas?\b|botin|sneaker|loafer|shoe/))return 'shoes';
- if(has(text,/abrigo|plumifer|puffer|chaqueta|cazadora|blazer|americana|parka|gabardina|cardigan|chaquet[ao]n|jacket|coat/))return 'outer';
+ if(has(text,/abrigo|plumifer|puffer|chaqueta|cazadora|blazer|americana|parka|gabardina|cardigan|chaquet[ao]n|jacket|coat|sobrecamisa|chubasquero|cortavientos/))return 'outer';
  if(has(text,/vestido|mono\b|jumpsuit|dress/))return 'onepiece';
  if(has(text,/pantalon|vaquero|jeans|bermuda|short|falda|trouser|skirt/))return 'bottom';
  if(has(text,/parte superior|camisa|camiseta|blusa|polo|jersey|sudadera|chaleco|top\b|shirt|sweater|hoodie/))return 'top';
@@ -112,6 +112,43 @@ export function replacementChoices(catalog, items, index, options) {
    .sort((a,b) => b.score - a.score)
    .map(({item}) => item);
 }
+export function packingList(looks) {
+ const items = new Map();
+ for (const [index, look] of looks.entries()) {
+   for (const item of look.items) {
+     if (!items.has(item.id)) items.set(item.id, {item, looks: []});
+     items.get(item.id).looks.push(index + 1);
+   }
+ }
+ return [...items.values()];
+}
+
+function selectTravelLooks(ranked, count) {
+ const looks = [], packed = new Set(), coats = new Set();
+ const usedCombinations = new Set();
+ const candidates = ranked.map(look => ({
+   look,
+   outer: look.items.find(item => roleOf(item) === 'outer'),
+   core: look.items.filter(item => !['shoes','accessory'].includes(roleOf(item))).map(item => item.id).sort().join('|')
+ }));
+ while (looks.length < count && candidates.length) {
+   let bestIndex = -1, bestScore = -Infinity;
+   for (const [index, {look, outer, core}] of candidates.entries()) {
+     if (outer && coats.size >= 2 && !coats.has(outer.id)) continue;
+     if (usedCombinations.has(core)) continue;
+     const repeats = look.items.filter(item => packed.has(item.id)).length;
+     const score = look.score + repeats * 12;
+     if (score > bestScore) { bestScore = score; bestIndex = index; }
+   }
+   if (bestIndex < 0) break;
+   const [{look, core, outer}] = candidates.splice(bestIndex, 1);
+   looks.push(look);
+   usedCombinations.add(core);
+   if (outer) coats.add(outer.id);
+   for (const item of look.items) packed.add(item.id);
+ }
+ return looks;
+}
 function shuffled(items,rng){const out=[...items];for(let i=out.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[out[i],out[j]]=[out[j],out[i]]}return out}
 export function propose(catalog,options={},rng=Math.random){
  const groups={top:[],bottom:[],onepiece:[],shoes:[],outer:[],accessory:[]};
@@ -137,7 +174,7 @@ export function propose(catalog,options={},rng=Math.random){
  for(let attempt=0;attempt<300;attempt++){
  const mode=modes[attempt%modes.length];const items=mode==='separates'?[pick('top'),pick('bottom')]:[pick('onepiece')];
  if(groups.shoes.length)items.push(pick('shoes'));
- if(groups.outer.length&&(options.weather==='cold'||anchorRole==='outer'||protocol==='formal'&&mode==='separates'))items.push(pick('outer'));
+ if(groups.outer.length&&(options.weather==='cold'||options.occasion==='travel'&&options.weather==='mild'||anchorRole==='outer'||protocol==='formal'&&mode==='separates'))items.push(pick('outer'));
  if(anchorRole==='accessory')items.push(anchor);
  if(anchor&&!items.some(g=>g.id===anchor.id))continue;
  const key=items.map(g=>g.id).sort().join('|');if(candidates.has(key))continue;
@@ -146,6 +183,11 @@ export function propose(catalog,options={},rng=Math.random){
  const ranked=scoreLook(items,options);candidates.set(key,{key,items,...ranked,warnings});
  }
  const ranked=[...candidates.values()].sort((a,b)=>b.score-a.score),looks=[];
+ if (options.occasion === 'travel') {
+   const count = Math.max(2, Math.min(10, Math.trunc(Number(options.travelCount) || 6)));
+   const travelLooks = selectTravelLooks(ranked, count);
+   return {looks:travelLooks,message:travelLooks.length + ' alternativas para el viaje.',unclassified};
+ }
  // Prefer distinct outfits over small shoe changes when the catalog allows it.
  while(ranked.length&&looks.length<3){let index=ranked.findIndex(candidate=>looks.every(previous=>candidate.items.filter(g=>previous.items.some(p=>p.id===g.id)).length<Math.min(candidate.items.length,previous.items.length)-1));if(index<0)index=0;looks.push(ranked.splice(index,1)[0])}
  return {looks,message:looks.length + (looks.length === 1 ? ' propuesta con tus prendas.' : ' propuestas con tus prendas.'),unclassified};
