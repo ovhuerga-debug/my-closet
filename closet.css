@@ -97,3 +97,17 @@ nav{gap:3px;margin-bottom:14px}nav button{font-size:.79rem;white-space:normal;pa
 }
 
 .garment-item-actions{margin-bottom:12px}
+
+#travelOptions[hidden]{display:none}
+.packing-card h3{margin:0}
+.packing-card ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;grid-template-columns:repeat(auto-fit,minmax(min(100%,255px),1fr))}
+.packing-card label{display:grid;grid-template-columns:auto 1fr;gap:0 9px;align-items:center;min-height:48px}
+.packing-card input{grid-row:span 2;width:1.2rem;min-height:0;height:1.2rem;margin:0;accent-color:#6656b3}
+.packing-card small{color:var(--muted)}
+.garment-suggestion{margin:8px 0 12px}
+.analysis-preview{white-space:pre-line}
+.travel-looks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.travel-looks .suggested-look{margin:0}
+.travel-looks .look-pieces{grid-template-columns:repeat(2,minmax(0,1fr))}
+.travel-looks .look-pieces img{height:clamp(100px,14vw,150px)}
+@media(max-width:720px){.travel-looks{grid-template-columns:1fr}}
