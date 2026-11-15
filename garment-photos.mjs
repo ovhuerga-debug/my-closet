@@ -9,6 +9,20 @@ export async function garmentPhotoURL(bucket, path) {
   return data.signedUrl;
 }
 
+export function descriptionFromViews(analyses, existing = '') {
+  const descriptions = new Map();
+  for (const result of analyses) {
+    const description = typeof result.descripcion === 'string' ? result.descripcion.trim() : '';
+    if (!description) continue;
+    const key = description.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    if (!key || [...descriptions.keys()].some(previous => previous.includes(key) || key.includes(previous))) continue;
+    descriptions.set(key, description);
+  }
+  if (!descriptions.size) throw Error('El análisis no devolvió una descripción aprovechable.');
+  const provenance = existing.match(/(?:Zara|Pull&Bear)\s*·\s*Ref\.\s*\d{11}[^\n.]*(?:\. Foto oficial del recibo\.)?/i)?.[0];
+  return [...descriptions.values(), provenance].filter(Boolean).join('\n\n');
+}
+
 export function extraPhotos({garment, client, compress, refresh, report}) {
   const details = document.createElement('details');
   const title = document.createElement('summary');
