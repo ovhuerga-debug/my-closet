@@ -4,6 +4,7 @@ export const occasions = {
   evening: {code:'smart', hint:'Para una cena, prioriza prendas arregladas y adapta la propuesta al restaurante.'},
   lunch: {code:'smart', hint:'Para una comida, combina prendas arregladas de día con el nivel que pida el sitio.'},
   walk: {code:'casual', hint:'Para un paseo, prioriza calzado cómodo y capas según la temperatura.'},
+  travel: {code:'casual', hint:'Combina prendas que puedas repetir y marca lo que ya has metido en la maleta.'},
   cinema: {code:'casual', hint:'Para el cine, prioriza comodidad y una capa ligera si refresca.'},
   theater: {code:'smart', hint:'Para el teatro, se propone un conjunto arreglado. El código de la sala o la invitación tiene prioridad.'},
   gym: {code:'sport', hint:'Para entrenar, busca prendas deportivas y zapatillas cerradas.'}
@@ -45,7 +46,7 @@ export function occasionScore(text, role, occasion, code) {
   } else if (/casual|vaquer|camiseta|zapatilla|polo/.test(text)) {
     score += 4;
   }
-  if (occasion === 'walk' && role === 'shoes' && /comod|zapatilla|sneaker/.test(text)) score += 12;
+  if (['walk', 'travel'].includes(occasion) && role === 'shoes' && /comod|zapatilla|sneaker/.test(text)) score += 12;
   if (occasion === 'cinema' && /comod|punto|jersey|sudadera/.test(text)) score += 5;
   if (occasion === 'lunch' && /lino|liger|polo|claro/.test(text)) score += 4;
   if (occasion === 'evening' && /elegante|seda|oscuro|mocasin/.test(text)) score += 5;
