@@ -1,14 +1,15 @@
 import {garmentPhotoURL} from './garment-photos.mjs?v=purchases1';
-import {occasions} from './dress-code.mjs?v=20261113e';
-import {propose,roleOf,scoreLook,prepareLookReferences,replacementChoices} from './combinations.mjs?v=20261113f';
+import {occasions} from './dress-code.mjs?v=travel1';
+import {propose,roleOf,scoreLook,prepareLookReferences,replacementChoices,packingList} from './combinations.mjs?v=travel1';
 
 export function initStylist({client,getCatalog,getLookReferences,onSaved}){
  const $=id=>document.getElementById(id);
  let current=[],version=0,options={},saved=new Set(),saving=new Set();
  const imageCache=new Map();
+ const packed=new Set();
  const status=text=>{$('stylistStatus').textContent=text};
- function reset(){version++;current=[];saved.clear();imageCache.clear();$('lookResults').replaceChildren();$('anchorItem').replaceChildren(new Option('Sorpréndeme',''));status('Entra para combinar tus prendas.');}
- function catalogChanged(){const select=$('anchorItem'),selected=select.value;select.replaceChildren(new Option('Sorpréndeme',''));for(const g of getCatalog().filter(g=>roleOf(g)))select.add(new Option(g.name||g.category,g.id));select.value=getCatalog().some(g=>g.id===selected)?selected:'';current=[];version++;$('lookResults').replaceChildren();status(getCatalog().length?'Tu armario está listo. Pulsa Combíname.':'Añade prendas con sus categorías para crear tu primer look.');}
+ function reset(){version++;current=[];saved.clear();packed.clear();imageCache.clear();$('lookResults').replaceChildren();$('packingList')?.replaceChildren();$('anchorItem').replaceChildren(new Option('Sorpréndeme',''));status('Entra para combinar tus prendas.');}
+ function catalogChanged(){const select=$('anchorItem'),selected=select.value;select.replaceChildren(new Option('Sorpréndeme',''));for(const g of getCatalog().filter(g=>roleOf(g)))select.add(new Option(g.name||g.category,g.id));select.value=getCatalog().some(g=>g.id===selected)?selected:'';current=[];version++;$('lookResults').replaceChildren();$('packingList')?.replaceChildren();status(getCatalog().length?'Tu armario está listo. Pulsa Combíname.':'Añade prendas con sus categorías para crear tu primer look.');}
  async function imageURL(item){const cached=imageCache.get(item.image_path);if(cached&&cached.expires>Date.now())return cached.url;const url=await garmentPhotoURL(client.storage.from('closet-images'),item.image_path);imageCache.set(item.image_path,{url,expires:Date.now()+3000000});return url;}
  function action(label,handler){const button=document.createElement('button');button.type='button';button.textContent=label;button.onclick=handler;return button}
  function piecePicker(look, proposalIndex) {
@@ -23,7 +24,12 @@ export function initStylist({client,getCatalog,getLookReferences,onSaved}){
    select.append(new Option('Elige una alternativa', ''));
    const choices = new Map();
    look.items.forEach((original, index) => {
-     const alternatives = replacementChoices(getCatalog(), look.items, index, options);
+     const alternatives = replacementChoices(getCatalog(), look.items, index, options).filter(item => {
+       if (options.occasion !== 'travel' || roleOf(item) !== 'outer') return true;
+       const otherCoats = new Set(current.flatMap(proposal => proposal.items.filter((piece, position) =>
+         roleOf(piece) === 'outer' && (proposal !== look || position !== index)).map(piece => piece.id)));
+       return otherCoats.size < 2 || otherCoats.has(item.id);
+     });
      if (!alternatives.length) return;
      const group = document.createElement('optgroup');
      group.label = 'En lugar de ' + (original.name || original.category);
@@ -52,11 +58,36 @@ export function initStylist({client,getCatalog,getLookReferences,onSaved}){
    picker.append(summary, label);
    return picker;
  }
+ function renderPacking(){
+   const target=$('packingList');
+   if (!target) return;
+   target.replaceChildren();
+   if (options.occasion !== 'travel' || !current.length) return;
+   const entries=packingList(current);
+   const section=document.createElement('section');
+   section.className='workspace-card packing-card';
+   const title=document.createElement('h3');title.textContent='Lista de maleta';
+   const progress=document.createElement('p');
+   progress.setAttribute('role','status');
+   const update=()=>{progress.textContent=entries.filter(({item})=>packed.has(item.id)).length+' de '+entries.length+' prendas en la maleta';};
+   const list=document.createElement('ul');
+   for(const {item,looks} of entries){
+     const row=document.createElement('li'),label=document.createElement('label'),checkbox=document.createElement('input');
+     checkbox.type='checkbox';checkbox.checked=packed.has(item.id);
+     checkbox.onchange=()=>{if(checkbox.checked)packed.add(item.id);else packed.delete(item.id);update();};
+     const name=document.createElement('span');name.textContent=item.name||item.category;
+     const usage=document.createElement('small');usage.textContent=(looks.length===1?'Look ':'Looks ')+looks.join(', ');
+     label.append(checkbox,name,usage);row.append(label);list.append(row);
+   }
+   update();section.append(title,progress,list);target.append(section);
+ }
  async function render(){
  const ticket=++version,container=$('lookResults');container.replaceChildren();
+ container.classList.toggle('travel-looks', options.occasion === 'travel');
+ renderPacking();
  for(const [index,look] of current.entries()){
  const card=document.createElement('article');card.className='suggested-look';
- const title=document.createElement('h3');title.textContent='Propuesta '+(index+1);
+ const title=document.createElement('h3');title.textContent=(options.occasion==='travel'?'Look ':'Propuesta ')+(index+1);
  const images=document.createElement('div');images.className='look-pieces';
  for(const item of look.items){const figure=document.createElement('figure'),img=document.createElement('img'),label=document.createElement('figcaption');img.alt=item.name||'Prenda de tu armario';img.loading='lazy';label.textContent=item.name||item.category;figure.append(img,label);images.append(figure);imageURL(item).then(url=>{if(ticket===version)img.src=url}).catch(()=>{if(ticket===version){img.hidden=true;label.textContent+=' · Foto no disponible'}})}
  const explanation=document.createElement('p');explanation.textContent=look.reasons.join(' ');
@@ -82,12 +113,14 @@ export function initStylist({client,getCatalog,getLookReferences,onSaved}){
  }
  async function generate(){
    const occasion = $('lookOccasion').value;
+   if ($('travelOptions')) $('travelOptions').hidden = occasion !== 'travel';
    $('lookDressCode').disabled = occasion === 'gym';
    $('occasionHint').textContent = occasions[occasion]?.hint || '';
    const looks = getLookReferences();
    options = {
      occasion, code: $('lookDressCode').value, weather: $('lookWeather').value,
-     anchorId: $('anchorItem').value, references: prepareLookReferences(looks)
+     anchorId: $('anchorItem').value, references: prepareLookReferences(looks),
+     travelCount: $('travelCount')?.value
    };
    const result = propose(getCatalog(), options);
    current = result.looks;
@@ -116,8 +149,8 @@ export function initStylist({client,getCatalog,getLookReferences,onSaved}){
  finally{saving.delete(key);await render()}
  }
  $('generateLooks').onclick=()=>generate().catch(e=>status('No se pudieron crear propuestas: '+e.message));
- for (const id of ['lookOccasion', 'lookDressCode', 'lookWeather', 'anchorItem']) {
-  $(id).onchange = () => generate().catch(error => status('No se pudieron crear propuestas: ' + error.message));
+ for (const id of ['lookOccasion', 'lookDressCode', 'lookWeather', 'anchorItem', 'travelCount']) {
+  if ($(id)) $(id).onchange = () => generate().catch(error => status('No se pudieron crear propuestas: ' + error.message));
  }
  function startWith(item) {
    const select = $('anchorItem');
