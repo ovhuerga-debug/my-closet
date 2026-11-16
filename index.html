@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="MY CLOSET">
 <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon.png">
-<link rel="stylesheet" href="./closet.css?v=today1">
+<link rel="stylesheet" href="./closet.css?v=entry1">
 <title>MY CLOSET</title>
 </head>
 <body>
@@ -91,7 +91,10 @@
   <div id="wardrobeIdeas" class="today-grid"></div>
   <details id="garmentUpload" class="workspace-card">
     <summary>Añadir prendas</summary>
-    <p>Selecciona varias fotos, una por prenda.</p>
+    <label for="garmentUploadMode">Cómo quieres subir las fotos<select id="garmentUploadMode">
+      <option value="one">Una prenda, una o varias fotos</option>
+      <option value="batch" selected>Varias prendas, una foto principal por prenda</option>
+    </select></label>
     <label for="garmentFile">Fotos de prendas</label>
     <input id="garmentFile" type="file" accept="image/*,.heic,.heif" multiple>
     <div id="garmentQueueControls" hidden>
@@ -110,13 +113,19 @@
     <p id="aiStatus" role="status"></p>
     <form id="aiForm" class="hidden" tabindex="-1" aria-labelledby="garmentStep">
       <h3 id="garmentStep"></h3>
-      <img id="garmentPreview" alt="Prenda seleccionada">
+      <img id="garmentPreview" alt="Foto principal de la prenda">
+      <label for="gExtraFiles">Más fotos de esta prenda<input id="gExtraFiles" type="file" accept="image/*,.heic,.heif" multiple></label>
+      <div id="gExtraPreviews" class="garment-extra-previews"></div>
       <div class="field-grid">
         <label for="gName">Nombre<input id="gName" required></label>
         <label for="gCategory">Categoría<select id="gCategory" required></select></label>
         <label for="gColors">Colores, separados por comas<input id="gColors"></label>
         <label for="gPattern">Estampado<input id="gPattern"></label>
         <label for="gStyle">Estilo<input id="gStyle"></label>
+      </div>
+      <div class="purchase-fields">
+        <label for="gEntryYear">Año de entrada<input id="gEntryYear" inputmode="numeric" placeholder="2026" maxlength="4"></label>
+        <label for="gPurchasePrice">Precio de compra (€)<input id="gPurchasePrice" inputmode="decimal" placeholder="39,95" maxlength="11"></label>
       </div>
       <label for="gDescription">Descripción para combinar<textarea id="gDescription" rows="4"></textarea></label>
       <button id="saveGarment" type="submit">Guardar prenda</button>
@@ -135,6 +144,8 @@
   <div class="toolbar">
     <label for="search">Buscar<input type="search" id="search" placeholder="Nombre, color o descripción"></label>
     <label for="categoryFilter">Categoría<select id="categoryFilter"><option value="">Todas</option></select></label>
+    <label for="entryYearFilter">Año de entrada<select id="entryYearFilter"><option value="">Todos</option><option value="unknown">Sin año</option></select></label>
+    <label for="purchasePriceOrder">Ordenar<select id="purchasePriceOrder"><option value="">Últimas añadidas</option><option value="asc">Precio de compra ascendente</option><option value="desc">Precio de compra descendente</option></select></label>
     <label for="duplicateFilter">Vista<select id="duplicateFilter"><option value="">Todas las fichas</option><option value="duplicates">Posibles duplicados</option></select></label>
   </div>
   <p id="count" class="result-count"></p>
@@ -189,6 +200,6 @@
   </form>
 </dialog>
 <script type="module" src="./install-app.mjs?v=20261112c"></script>
-<script type="module" src="./closet.js?v=today1"></script>
+<script type="module" src="./closet.js?v=entry1"></script>
 </body>
 </html>
