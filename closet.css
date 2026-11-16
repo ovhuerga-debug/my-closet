@@ -111,3 +111,27 @@ nav{gap:3px;margin-bottom:14px}nav button{font-size:.79rem;white-space:normal;pa
 .travel-looks .look-pieces{grid-template-columns:repeat(2,minmax(0,1fr))}
 .travel-looks .look-pieces img{height:clamp(100px,14vw,150px)}
 @media(max-width:720px){.travel-looks{grid-template-columns:1fr}}
+
+nav{grid-template-columns:repeat(7,minmax(0,1fr))}
+nav button{padding-inline:6px;white-space:normal}
+.today-heading{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:end;padding:clamp(20px,5vw,55px);background:#e7eee2;border-radius:var(--radius);margin-bottom:20px}
+.today-heading h1{max-width:14ch}
+.today-heading p{margin-bottom:0}
+.weather-card{display:grid;min-width:130px;gap:4px;padding:16px 19px;border-radius:14px;background:#ffffffad;line-height:1.25}
+.weather-card strong{font:800 clamp(1.8rem,5vw,2.9rem)/1 Manrope,sans-serif;letter-spacing:-.07em}
+.weather-card a{font-size:.7rem;color:var(--muted)}
+.today-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.today-grid:empty{display:none}
+.today-card{border:1px solid var(--line);border-radius:var(--radius);background:var(--white);padding:16px;min-width:0}
+.today-card h2{font-size:1.32rem;margin-bottom:8px}
+.today-card .look-pieces{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:0}
+.today-card .look-pieces img{height:clamp(106px,15vw,175px)}
+.today-card .look-pieces figcaption{overflow-wrap:anywhere}
+.agenda-form{display:flex;align-items:end;flex-wrap:wrap;gap:8px}
+.agenda-form label{flex:1;min-width:min(100%,220px)}
+.agenda-form select{margin-bottom:0}
+.wardrobe-flags{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
+.wardrobe-flags button{background:#eeeaf8;color:var(--ink);font-size:.76rem;padding:5px 8px}
+.wardrobe-flags button[aria-pressed=true]{background:#d9d0f3}
+@media(max-width:860px){nav{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:620px){.today-grid{grid-template-columns:1fr}.today-heading{grid-template-columns:1fr}.weather-card{justify-self:start}.today-card .look-pieces img{height:136px}}
