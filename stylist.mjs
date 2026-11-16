@@ -136,17 +136,18 @@ export function initStylist({client,getCatalog,getLookReferences,onSaved}){
  photos.forEach((img,index)=>{const x=48+(index%columns)*560,y=150+Math.floor(index/columns)*height,w=536,h=height-62;ctx.fillStyle='#e6e4d9';ctx.fillRect(x,y,w,h);const scale=Math.min(w/img.width,h/img.height);ctx.drawImage(img,x+(w-img.width*scale)/2,y+(h-img.height*scale)/2,img.width*scale,img.height*scale);ctx.fillStyle='#354333';ctx.font='22px sans-serif';const name=look.items[index].name||look.items[index].category;ctx.fillText(name.length>37?name.slice(0,36)+'…':name,x,y+h+30,w)});
  return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(Error('No se pudo preparar la imagen del look.')),'image/jpeg',.9));
  }
- async function saveLook(look,button){
- if(saved.has(look.key)||saving.has(look.key))return;
- const snapshot={...look,items:[...look.items]};const key=snapshot.key,ticket=version;saving.add(key);button.disabled=true;button.textContent='Guardando…';status('Preparando la imagen de tu look…');let uploaded=false,path=null;
+ async function saveLook(look,button,{report=status,rerender=true}={}){
+ if(saved.has(look.key)){button.disabled=true;button.textContent='Look guardado';return;}
+ if(saving.has(look.key))return;
+ const snapshot={...look,items:[...look.items]};const key=snapshot.key,ticket=version;saving.add(key);button.disabled=true;button.textContent='Guardando…';report('Preparando la imagen de tu look…');let uploaded=false,path=null;
  try{
  const {data:{user},error:authError}=await client.auth.getUser();if(authError)throw authError;if(!user)throw Error('Inicia sesión para guardar el look.');
- const blob=await collage(snapshot);if(ticket!==version)throw Error('El look ha cambiado. Vuelve a guardarlo.');
+ const blob=await collage(snapshot);if(rerender&&ticket!==version)throw Error('El look ha cambiado. Vuelve a guardarlo.');
  path=user.id+'/outfits/look-'+crypto.randomUUID()+'.jpg';const up=await client.storage.from('closet-images').upload(path,blob,{contentType:'image/jpeg',upsert:false});if(up.error)throw up.error;uploaded=true;
  const result=await client.from('outfits').insert({user_id:user.id,image_path:path});if(result.error)throw result.error;
- saved.add(key);status('Look guardado en tus Outfits. Aparecerá también en tus otros dispositivos con la misma cuenta.');button.textContent='Guardado en Outfits';await onSaved().catch(()=>status('Look guardado. Pulsa Actualizar en Outfits para verlo.'));
- }catch(error){if(uploaded&&path&&!saved.has(key))await client.storage.from('closet-images').remove([path]).catch(()=>{});status('No se pudo guardar: '+error.message);button.textContent='Reintentar guardar';button.disabled=false}
- finally{saving.delete(key);await render()}
+ saved.add(key);report('Look guardado en tu álbum.');button.textContent='Look guardado';await onSaved().catch(()=>report('Look guardado. Pulsa Actualizar en Looks para verlo.'));
+ }catch(error){if(uploaded&&path&&!saved.has(key))await client.storage.from('closet-images').remove([path]).catch(()=>{});report('No se pudo guardar: '+error.message);button.textContent='Reintentar guardar';button.disabled=false}
+ finally{saving.delete(key);if(rerender)await render()}
  }
  $('generateLooks').onclick=()=>generate().catch(e=>status('No se pudieron crear propuestas: '+e.message));
  for (const id of ['lookOccasion', 'lookDressCode', 'lookWeather', 'anchorItem', 'travelCount']) {
@@ -159,5 +160,5 @@ export function initStylist({client,getCatalog,getLookReferences,onSaved}){
    document.querySelector('nav [data-go="looksPanel"]').click();
    generate().catch(error => status('No se pudieron crear propuestas: ' + error.message));
  }
- return {catalogChanged,reset,startWith};
+ return {catalogChanged,reset,startWith,saveLook,isLookSaved:key=>saved.has(key)};
 }
