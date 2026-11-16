@@ -3,25 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f7f6f2">
+<meta name="theme-color" content="#2447b7">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="manifest" href="./manifest.webmanifest?v=20261112c">
+<link rel="manifest" href="./manifest.webmanifest?v=cobalto1">
 <meta name="apple-mobile-web-app-title" content="MY CLOSET">
 <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon.png">
-<link rel="stylesheet" href="./closet.css?v=entry1">
+<link rel="stylesheet" href="./closet.css?v=cobalto1">
 <title>MY CLOSET</title>
 </head>
 <body>
 <header class="site-header">
-  <div class="wordmark"><img class="brand-icon" src="./icons/app-192.png" alt="" width="44" height="44"><span>MY CLOSET</span></div>
+  <div class="wordmark"><span class="brand-mark" aria-hidden="true">MC</span><span>MY CLOSET</span></div>
   <button id="installApp" class="secondary install-button" type="button">Instalar app</button>
 </header>
 <main>
 <p id="globalStatus" class="notice" role="status"></p>
 <section id="login"><h2>Tu armario te espera</h2><p>Entra con tu correo y contraseña. La sesión se mantiene guardada en este navegador.</p><form id="passwordForm"><label for="email">Correo electrónico</label><input id="email" type="email" autocomplete="username" required placeholder="Tu correo electrónico"><label for="loginPassword">Contraseña</label><input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Tu contraseña"><button id="passwordLogin" type="submit">Entrar en mi armario</button></form><p id="authMsg" role="status" aria-live="polite"></p><details class="access-help"><summary>¿Primera vez o has olvidado tu contraseña?</summary><p>Escribe tu correo arriba y entra con un enlace. Después abre <strong>Mi contraseña</strong> para crear o cambiar tu contraseña.</p><button id="send" type="button" class="secondary">Enviarme un enlace de acceso</button></details><p class="hint">Usa siempre el mismo navegador o la app instalada. En modo privado o al borrar los datos del navegador, tendrás que volver a entrar.</p></section>
 <section id="private" class="hidden">
-<nav aria-label="Secciones de MY CLOSET">
+<nav class="desktop-nav" aria-label="Secciones de MY CLOSET">
   <button data-go="todayPanel" aria-pressed="true">Hoy</button>
   <button data-go="garmentsPanel" data-wardrobe="events" aria-pressed="false">Ropa para eventos</button>
   <button data-go="garmentsPanel" data-wardrobe="work" aria-pressed="false">Ropa para el trabajo</button>
@@ -30,14 +30,23 @@
   <button data-go="outfitsPanel" aria-pressed="false">Looks</button>
   <button data-go="looksPanel" aria-pressed="false">✦ Combíname</button>
 </nav>
+<nav class="mobile-nav" aria-label="Navegación móvil">
+  <button type="button" data-go="todayPanel" aria-pressed="true">Hoy</button>
+  <button type="button" data-go="garmentsPanel" data-wardrobe="all" aria-pressed="false">Tu ropa</button>
+  <button type="button" data-go="outfitsPanel" aria-pressed="false">Looks</button>
+  <button type="button" data-go="looksPanel" aria-pressed="false">Combíname</button>
+</nav>
 <section id="todayPanel" class="panel">
   <header class="today-heading">
-    <div><p class="eyebrow" id="todayDate"></p><h1>Qué ponerte hoy</h1><p id="todayPlan" role="status">Preparando tus propuestas…</p></div>
-    <div class="weather-card" aria-label="El tiempo">
-      <strong id="todayTemperature">—</strong>
-      <span id="todayWeather">Alcorcón</span>
-      <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>
+    <div class="issue-line">
+      <div><p id="todayDate"></p><p id="todayPlan" role="status">Preparando tus propuestas…</p></div>
+      <div class="weather-card" aria-label="El tiempo">
+        <strong id="todayTemperature">—</strong>
+        <span id="todayWeather">Alcorcón</span>
+        <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>
+      </div>
     </div>
+    <h1>Qué ponerte hoy</h1>
   </header>
   <div id="todayLooks" class="today-grid"></div>
   <details class="workspace-card">
@@ -88,6 +97,12 @@
     <div><span class="eyebrow">Inventario</span><h1 id="wardrobeTitle">Tu ropa</h1><p id="wardrobeIntro">Todas tus prendas, listas para combinar.</p></div>
     <button id="openGarmentUpload" type="button">＋ Añadir prendas</button>
   </div>
+  <nav class="collection-nav" aria-label="Colecciones">
+    <button type="button" data-go="garmentsPanel" data-wardrobe="all" aria-pressed="true">Todas</button>
+    <button type="button" data-go="garmentsPanel" data-wardrobe="events" aria-pressed="false">Eventos</button>
+    <button type="button" data-go="garmentsPanel" data-wardrobe="work" aria-pressed="false">Trabajo</button>
+    <button type="button" data-go="garmentsPanel" data-wardrobe="new" aria-pressed="false">Nueva</button>
+  </nav>
   <div id="wardrobeIdeas" class="today-grid"></div>
   <details id="garmentUpload" class="workspace-card">
     <summary>Añadir prendas</summary>
@@ -200,6 +215,6 @@
   </form>
 </dialog>
 <script type="module" src="./install-app.mjs?v=20261112c"></script>
-<script type="module" src="./closet.js?v=entry1"></script>
+<script type="module" src="./closet.js?v=cobalto1"></script>
 </body>
 </html>
