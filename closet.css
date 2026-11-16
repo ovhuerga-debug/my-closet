@@ -1,6 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif&family=Manrope:wght@500;600;700;800&display=swap');
 
-:root{color-scheme:light;--paper:#f7f6f2;--ink:#24241f;--muted:#5e5d54;--line:#dedcd4;--white:#fff;--soft:#eeece5;--accent:#dfdbff;--radius:18px}
+:root{color-scheme:light;--paper:#dceeff;--ink:#203d88;--muted:#405887;--line:#a8c4e7;--white:#fff;--soft:#eff7ff;--accent:#ffe49b;--radius:13px;--cobalt:#2447b7;--cherry:#a52130;--mustard:#f3d56c}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 "DM Sans",system-ui,sans-serif}
 [hidden],.hidden{display:none!important}
@@ -12,15 +12,15 @@ h3{font-size:1.25rem;letter-spacing:-.02em}
 p{color:var(--muted)}
 a{color:inherit}
 button,input,select,textarea{font:inherit}
-button{border:0;border-radius:11px;background:var(--ink);color:var(--white);padding:11px 17px;font-weight:700;cursor:pointer;min-height:44px;white-space:nowrap}
+button{border:0;border-radius:11px;background:var(--cobalt);color:var(--white);padding:11px 17px;font-weight:700;cursor:pointer;min-height:44px;white-space:nowrap}
 button:hover{filter:brightness(.92)}
 button:disabled{opacity:.52;cursor:default}
-button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid #8171d8;outline-offset:3px}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid #ad2734;outline-offset:3px}
 .secondary{background:var(--soft);color:var(--ink)}
 .quiet-button{background:transparent;color:var(--muted)}
 label{display:block;font-size:.86rem;font-weight:700}
 input,select,textarea{display:block;width:100%;margin:6px 0 13px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--ink);background:#fff;min-height:44px}
-input[type=range]{padding:0;accent-color:#6656b3}
+input[type=range]{padding:0;accent-color:var(--cobalt)}
 #purchaseReview{list-style:none;padding:0}
 #purchaseReview:empty{display:none}
 #purchaseReview label{display:flex;align-items:center;gap:.5rem}
@@ -36,10 +36,10 @@ main{max-width:1240px;margin:0 auto;padding:0 32px 42px}
 nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:6px;background:var(--soft);border:1px solid var(--line);border-radius:15px;margin-bottom:24px}
 nav button{background:transparent;color:var(--muted);min-width:0}
 nav button[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:0 1px 5px #29282012}
-.section-heading,.stylist-heading{padding:clamp(20px,4vw,45px);border-radius:var(--radius);background:#eae7f8;margin-bottom:20px}
+.section-heading,.stylist-heading{padding:clamp(20px,4vw,45px);border-radius:var(--radius);background:#eaf4ff;margin-bottom:20px}
 .section-heading{display:flex;align-items:end;justify-content:space-between;gap:15px}
 .section-heading p,.stylist-heading p{margin:12px 0 0;max-width:50ch}
-#garmentsPanel .section-heading{background:#e7eee2}
+#garmentsPanel .section-heading{background:#eff7ff}
 .eyebrow{text-transform:uppercase;letter-spacing:.15em;font-size:.72rem;font-weight:800}
 .workspace-card,#login{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:16px 20px;margin:16px 0}
 #login{max-width:530px;margin:40px auto;padding:clamp(18px,5vw,32px)}
@@ -69,11 +69,11 @@ nav button[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:0 1px 
 #garmentPreview{max-width:160px;max-height:200px;object-fit:contain;border-radius:12px}
 #selection{grid-template-columns:repeat(8,minmax(0,1fr));gap:7px;margin-bottom:10px}
 #selection img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px}
-progress{width:100%;margin-top:13px;accent-color:#6656b3}
-.notice:not(:empty){padding:11px 14px;border-radius:11px;background:#f0edf9}
+progress{width:100%;margin-top:13px;accent-color:var(--cobalt)}
+.notice:not(:empty){padding:11px 14px;border-radius:11px;background:#eff7ff}
 .notice:empty,#status:empty,#aiStatus:empty,.look-warning:empty{display:none}
 dialog{width:min(510px,calc(100% - 24px));max-height:calc(100dvh - 30px);overflow:auto;border:1px solid var(--line);border-radius:var(--radius);padding:18px;color:var(--ink)}
-dialog::backdrop{background:#1d1c2199}
+dialog::backdrop{background:#182f7299}
 .editor-preview{width:min(100%,230px);margin:0 auto 12px}
 .frame-sliders{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
 .suggested-look{margin:14px 0;padding:18px}
@@ -102,7 +102,7 @@ nav{gap:3px;margin-bottom:14px}nav button{font-size:.79rem;white-space:normal;pa
 .packing-card h3{margin:0}
 .packing-card ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;grid-template-columns:repeat(auto-fit,minmax(min(100%,255px),1fr))}
 .packing-card label{display:grid;grid-template-columns:auto 1fr;gap:0 9px;align-items:center;min-height:48px}
-.packing-card input{grid-row:span 2;width:1.2rem;min-height:0;height:1.2rem;margin:0;accent-color:#6656b3}
+.packing-card input{grid-row:span 2;width:1.2rem;min-height:0;height:1.2rem;margin:0;accent-color:var(--cobalt)}
 .packing-card small{color:var(--muted)}
 .garment-suggestion{margin:8px 0 12px}
 .analysis-preview{white-space:pre-line}
@@ -112,29 +112,12 @@ nav{gap:3px;margin-bottom:14px}nav button{font-size:.79rem;white-space:normal;pa
 .travel-looks .look-pieces img{height:clamp(100px,14vw,150px)}
 @media(max-width:720px){.travel-looks{grid-template-columns:1fr}}
 
-nav{grid-template-columns:repeat(7,minmax(0,1fr))}
-nav button{padding-inline:6px;white-space:normal}
-.today-heading{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:end;padding:clamp(20px,5vw,55px);background:#e7eee2;border-radius:var(--radius);margin-bottom:20px}
-.today-heading h1{max-width:14ch}
-.today-heading p{margin-bottom:0}
-.weather-card{display:grid;min-width:130px;gap:4px;padding:16px 19px;border-radius:14px;background:#ffffffad;line-height:1.25}
-.weather-card strong{font:800 clamp(1.8rem,5vw,2.9rem)/1 Manrope,sans-serif;letter-spacing:-.07em}
-.weather-card a{font-size:.7rem;color:var(--muted)}
-.today-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:16px}
-.today-grid:empty{display:none}
-.today-card{border:1px solid var(--line);border-radius:var(--radius);background:var(--white);padding:16px;min-width:0}
-.today-card h2{font-size:1.32rem;margin-bottom:8px}
-.today-card .look-pieces{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:0}
-.today-card .look-pieces img{height:clamp(106px,15vw,175px)}
-.today-card .look-pieces figcaption{overflow-wrap:anywhere}
 .agenda-form{display:flex;align-items:end;flex-wrap:wrap;gap:8px}
 .agenda-form label{flex:1;min-width:min(100%,220px)}
 .agenda-form select{margin-bottom:0}
 .wardrobe-flags{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
 .wardrobe-flags button{background:#eeeaf8;color:var(--ink);font-size:.76rem;padding:5px 8px}
 .wardrobe-flags button[aria-pressed=true]{background:#d9d0f3}
-@media(max-width:860px){nav{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media(max-width:620px){.today-grid{grid-template-columns:1fr}.today-heading{grid-template-columns:1fr}.weather-card{justify-self:start}.today-card .look-pieces img{height:136px}}
 
 .purchase-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .garment-extra-previews{display:grid;grid-template-columns:repeat(auto-fit,minmax(85px,122px));gap:9px;margin:8px 0 14px}
@@ -143,3 +126,87 @@ nav button{padding-inline:6px;white-space:normal}
 .garment-extra-previews img{display:block;width:100%;aspect-ratio:1;object-fit:contain;background:var(--soft);border-radius:10px}
 .garment-extra-previews button{font-size:.77rem;padding:5px 7px}
 .garment-purchase{font-size:.82rem;font-weight:700;color:var(--ink)}
+
+/* Navegación y portada */
+.site-header{background:var(--cobalt);color:#fff8e9;max-width:none;padding-inline:max(28px,calc((100% - 1176px)/2));margin-bottom:14px}
+.brand-mark{display:grid;place-items:center;width:42px;height:42px;border-radius:8px;background:var(--mustard);color:var(--ink);letter-spacing:0}
+.desktop-nav{grid-template-columns:repeat(7,minmax(0,1fr));padding:4px;gap:3px;background:var(--cobalt);border:0}
+.desktop-nav button,.mobile-nav button{color:white;white-space:normal;padding-inline:6px}
+.desktop-nav button[aria-pressed=true],.mobile-nav button[aria-pressed=true]{background:var(--mustard);color:var(--ink);box-shadow:none}
+.mobile-nav,.collection-nav{display:none}
+.issue-line{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 18px;border-block:1px solid var(--line);padding:8px 0}
+.issue-line p{margin:0}
+#todayDate{font-weight:700;text-transform:capitalize;color:var(--ink)}
+#todayPlan{font-size:.83rem}
+.weather-card{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 9px}
+.weather-card strong{font-size:1.27rem;white-space:nowrap}
+.weather-card span,.weather-card a{font-size:.8rem}
+.today-heading h1,.section-heading h1,.stylist-heading h2{font-family:"Instrument Serif",Georgia,serif;font-weight:400;letter-spacing:-.025em}
+.today-heading h1{font-size:clamp(3.1rem,10vw,7rem);line-height:.95;margin:12px 0 18px}
+.today-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.today-grid:empty{display:none}
+#todayLooks{grid-template-columns:minmax(0,1.65fr) minmax(0,1fr)}
+.today-card{border:1px solid var(--line);background:var(--soft);padding:14px;min-width:0;overflow-wrap:anywhere;display:flex;flex-direction:column;gap:10px}
+.today-card h2{font:400 clamp(1.8rem,4.2vw,3rem)/.97 "Instrument Serif",Georgia,serif;margin:0}
+.today-card p{margin:0}
+.today-card .look-pieces{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:0}
+.today-card .look-pieces figure{background:#eef6ff;position:relative;min-width:0;min-height:0;display:flex;flex-direction:column;justify-content:flex-end}
+.today-card .look-pieces img{height:clamp(103px,14vw,170px);display:block;object-fit:contain;background:#fff;border-radius:0;padding:4px}
+.today-card .look-pieces img:not([src]){visibility:hidden}
+.today-card .look-pieces figcaption{color:#203d88;padding:4px 7px;font-size:.76rem;margin:0}
+.today-card .look-pieces figure:nth-child(2n){background:#ffedbb}
+.today-card .look-pieces figure:nth-child(3n){background:#f8d8d1}
+.today-card .look-pieces[data-count="3"] figure:first-child{grid-row:span 2}
+.today-card .look-pieces[data-count="3"] figure:first-child img{flex:1;min-height:0}
+.today-card .look-pieces[data-count="1"]{grid-template-columns:1fr}
+.today-card.featured{background:var(--cherry);color:#fff4db;border-color:transparent}
+.today-card.alternate{background:#3158ad;color:#fff8e9;border-color:transparent}
+.today-card.featured p,.today-card.alternate p{color:#fff4db}
+.today-card.featured .look-pieces{order:-1}
+.today-card.featured .look-pieces img{height:clamp(125px,17vw,205px)}
+.today-card.secondary-story{background:var(--mustard);border-color:transparent}
+.today-card.secondary-story .look-pieces{grid-template-columns:repeat(auto-fit,minmax(min(90px,100%),1fr))}
+.today-card.secondary-story .look-pieces figure{grid-row:auto}
+.today-card.secondary-story .look-pieces img{height:112px}
+.today-card.alternate .look-pieces{margin-top:auto}
+.today-card .piece-change{margin-top:auto}
+.today-card .piece-change summary{font-size:.88rem}
+.today-card .piece-change select{margin-bottom:0}
+.today-card .piece-change[open]>summary{margin-bottom:6px}
+.today-card .piece-change label{color:inherit}
+
+#garmentGallery{align-items:start}
+.garment-card{padding:0;background:var(--soft);overflow:hidden}
+.garment-card>.garment-record{margin:0}
+.garment-record>.garment-front{list-style:none;display:grid;gap:4px;margin:0}
+.garment-front::-webkit-details-marker{display:none}
+.garment-front img{display:block;width:100%;aspect-ratio:4/5;border-radius:0;background:#fff}
+.garment-front-label{display:grid;gap:2px;padding:9px 10px 11px;overflow-wrap:anywhere}
+.garment-front-label strong{font-size:.92rem}
+.garment-front-label small{color:var(--muted);font-weight:500}
+.garment-front-label .garment-purchase{color:var(--ink);font-size:.76rem}
+.garment-record-body{padding:0 10px 12px;margin-top:0;border-top:1px solid var(--line)}
+.garment-record-body>p{white-space:pre-line}
+.garment-record-body .card-actions button{white-space:normal}
+.garment-record-body .remove-garment{background:transparent;color:var(--cherry);border:1px solid var(--line)}
+
+@media(max-width:920px){.desktop-nav button{font-size:.78rem}}
+@media(max-width:720px){
+ .site-header{padding:10px 14px;margin-bottom:9px}
+ .brand-mark{width:35px;height:35px}
+ .desktop-nav{display:none}
+ .mobile-nav{position:fixed;inset:auto 0 0;z-index:10;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;
+  margin:0;padding:5px max(8px,env(safe-area-inset-right)) calc(5px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
+  border:0;border-radius:0;background:var(--cobalt)}
+ .mobile-nav button{font-size:.81rem}
+ main{padding-bottom:calc(75px + env(safe-area-inset-bottom))}
+ .collection-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;margin:0 0 12px;padding:3px}
+ .collection-nav button{font-size:.82rem;padding-inline:4px}
+ .collection-nav button[aria-pressed=true]{background:var(--cobalt);color:white}
+ #todayLooks,.today-grid{grid-template-columns:1fr}
+ .today-card.featured .look-pieces img{height:clamp(102px,34vw,160px)}
+ .today-card .look-pieces img{height:clamp(100px,32vw,145px)}
+ .today-card h2{font-size:2.15rem}
+ .today-heading h1{font-size:clamp(3.1rem,12vw,4.7rem);margin:12px 0}
+ .weather-card a{display:none}
+}
