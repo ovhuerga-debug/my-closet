@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="MY CLOSET">
 <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon.png">
-<link rel="stylesheet" href="./closet.css?v=travel1">
+<link rel="stylesheet" href="./closet.css?v=today1">
 <title>MY CLOSET</title>
 </head>
 <body>
@@ -22,12 +22,40 @@
 <section id="login"><h2>Tu armario te espera</h2><p>Entra con tu correo y contraseña. La sesión se mantiene guardada en este navegador.</p><form id="passwordForm"><label for="email">Correo electrónico</label><input id="email" type="email" autocomplete="username" required placeholder="Tu correo electrónico"><label for="loginPassword">Contraseña</label><input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Tu contraseña"><button id="passwordLogin" type="submit">Entrar en mi armario</button></form><p id="authMsg" role="status" aria-live="polite"></p><details class="access-help"><summary>¿Primera vez o has olvidado tu contraseña?</summary><p>Escribe tu correo arriba y entra con un enlace. Después abre <strong>Mi contraseña</strong> para crear o cambiar tu contraseña.</p><button id="send" type="button" class="secondary">Enviarme un enlace de acceso</button></details><p class="hint">Usa siempre el mismo navegador o la app instalada. En modo privado o al borrar los datos del navegador, tendrás que volver a entrar.</p></section>
 <section id="private" class="hidden">
 <nav aria-label="Secciones de MY CLOSET">
-  <button data-go="outfitsPanel" aria-pressed="true">Looks</button>
-  <button data-go="garmentsPanel" aria-pressed="false">Prendas compradas</button>
+  <button data-go="todayPanel" aria-pressed="true">Hoy</button>
+  <button data-go="garmentsPanel" data-wardrobe="events" aria-pressed="false">Ropa para eventos</button>
+  <button data-go="garmentsPanel" data-wardrobe="work" aria-pressed="false">Ropa para el trabajo</button>
+  <button data-go="garmentsPanel" data-wardrobe="all" aria-pressed="false">Tu ropa</button>
+  <button data-go="garmentsPanel" data-wardrobe="new" aria-pressed="false">Tu ropa nueva</button>
+  <button data-go="outfitsPanel" aria-pressed="false">Looks</button>
   <button data-go="looksPanel" aria-pressed="false">✦ Combíname</button>
 </nav>
+<section id="todayPanel" class="panel">
+  <header class="today-heading">
+    <div><p class="eyebrow" id="todayDate"></p><h1>Qué ponerte hoy</h1><p id="todayPlan" role="status">Preparando tus propuestas…</p></div>
+    <div class="weather-card" aria-label="El tiempo">
+      <strong id="todayTemperature">—</strong>
+      <span id="todayWeather">Alcorcón</span>
+      <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>
+    </div>
+  </header>
+  <div id="todayLooks" class="today-grid"></div>
+  <details class="workspace-card">
+    <summary>Agenda de hoy</summary>
+    <p id="todayAgendaStatus" role="status">Aún no se ha comprobado tu agenda de hoy.</p>
+    <form id="dailyAgendaForm" class="agenda-form">
+      <label for="dailyAgenda">Añadir un plan<select id="dailyAgenda">
+        <option value="none">Sin evento</option><option value="work">Reunión de trabajo</option>
+        <option value="lunch">Comida</option><option value="evening">Cena</option>
+        <option value="theater">Teatro o concierto</option><option value="cinema">Cine</option>
+        <option value="formal">Ceremonia o gala</option><option value="smart">Otro evento</option>
+      </select></label>
+      <button type="submit" class="secondary">Actualizar agenda de hoy</button>
+    </form>
+  </details>
+</section>
 
-<section id="outfitsPanel" class="panel">
+<section id="outfitsPanel" class="panel" hidden>
   <div class="section-heading">
     <div><span class="eyebrow">Álbum personal</span><h1>Looks por temporada</h1><p>Encuentra tus fotos por estación y ajusta cada encuadre.</p></div>
     <button type="button" id="openLookUpload">＋ Subir fotos</button>
@@ -57,9 +85,10 @@
 
 <section id="garmentsPanel" class="panel" hidden>
   <div class="section-heading">
-    <div><span class="eyebrow">Inventario</span><h1>Prendas compradas</h1><p>Guarda cada compra por separado para poder combinarla.</p></div>
+    <div><span class="eyebrow">Inventario</span><h1 id="wardrobeTitle">Tu ropa</h1><p id="wardrobeIntro">Todas tus prendas, listas para combinar.</p></div>
     <button id="openGarmentUpload" type="button">＋ Añadir prendas</button>
   </div>
+  <div id="wardrobeIdeas" class="today-grid"></div>
   <details id="garmentUpload" class="workspace-card">
     <summary>Añadir prendas</summary>
     <p>Selecciona varias fotos, una por prenda.</p>
@@ -160,6 +189,6 @@
   </form>
 </dialog>
 <script type="module" src="./install-app.mjs?v=20261112c"></script>
-<script type="module" src="./closet.js?v=travel1"></script>
+<script type="module" src="./closet.js?v=today1"></script>
 </body>
 </html>
