@@ -135,3 +135,11 @@ nav button{padding-inline:6px;white-space:normal}
 .wardrobe-flags button[aria-pressed=true]{background:#d9d0f3}
 @media(max-width:860px){nav{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:620px){.today-grid{grid-template-columns:1fr}.today-heading{grid-template-columns:1fr}.weather-card{justify-self:start}.today-card .look-pieces img{height:136px}}
+
+.purchase-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.garment-extra-previews{display:grid;grid-template-columns:repeat(auto-fit,minmax(85px,122px));gap:9px;margin:8px 0 14px}
+.garment-extra-previews:empty,.garment-purchase:empty{display:none}
+.garment-extra-previews figure{margin:0;text-align:center}
+.garment-extra-previews img{display:block;width:100%;aspect-ratio:1;object-fit:contain;background:var(--soft);border-radius:10px}
+.garment-extra-previews button{font-size:.77rem;padding:5px 7px}
+.garment-purchase{font-size:.82rem;font-weight:700;color:var(--ink)}
