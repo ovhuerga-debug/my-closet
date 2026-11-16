@@ -1,5 +1,5 @@
 import {purchaseDetails, detailsLabel, sortByPrice} from './garment-details.mjs?v=entry1';
-import {initToday, wardrobeMatch} from './today.mjs?v=today1';
+import {initToday, wardrobeMatch} from './today.mjs?v=cobalto1';
 import {descriptionFromViews, extraPhotos, garmentPhotoURL, productPhoto} from './garment-photos.mjs?v=travel1';
 import {initPurchaseBatch} from './purchase-batch.mjs?v=purchases2';
 import {createGarmentBatch} from './garment-batch.mjs?v=entry1';
@@ -7,7 +7,7 @@ import {createAlbum} from './look-album.mjs?v=20261113d';
 import {captureDate} from './photo-dates.mjs?v=20261112';
 import {categories, categoryFor, fillCategorySelect} from './closet-catalog.mjs?v=20261112e';
 import {initPasswordAccess} from './password-access.mjs';
-import {initStylist} from './stylist.mjs?v=travel1';
+import {initStylist} from './stylist.mjs?v=cobalto1';
 
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2';
 const supabase=createClient('https://tqphpcoqnlhzlxvzilxy.supabase.co','sb_publishable_xX9_VMIhz3C_JLTmhtWoPw_4KpWD73b',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
@@ -27,7 +27,9 @@ function updateClosetMetadata(changes){
 }
 const today=initToday({client:supabase,getCatalog:()=>garments,getReferences:album.getReferences,
   getMetadata:()=>closetMetadata,readAgenda:()=>closetMetadata.closet_daily_agenda,
-  saveAgenda:agenda=>updateClosetMetadata({closet_daily_agenda:agenda})});
+  saveAgenda:agenda=>updateClosetMetadata({closet_daily_agenda:agenda}),
+  isLookSaved:stylist.isLookSaved,
+  saveLook:(look,button)=>stylist.saveLook(look,button,{report:message=>{ $('globalStatus').textContent=message; },rerender:false})});
 function msg(s){$('status').textContent=s;$('globalStatus').textContent=s}
 async function state(){if(stateRunning||busy)return;stateRunning=true;try{const {data:{user},error}=await supabase.auth.getUser();if(error)console.warn(error.message);$('login').classList.toggle('hidden',!!user);$('private').classList.toggle('hidden',!user);if(user){closetMetadata=user.user_metadata||{};$('who').textContent=user.email||user.id;await Promise.all([load(),loadGarments()]);today.refresh();today.wardrobe(wardrobeView)}else{garments=[];closetMetadata={};today.reset();garmentBatch.reset();purchaseBatch.reset();album.reset();stylist.reset();$('garmentGallery').replaceChildren()}}catch(e){$('globalStatus').textContent='No se pudo conectar: '+e.message}finally{stateRunning=false}}
 const passwordAccess=initPasswordAccess({client:supabase,onSignedIn:state,redirectTo:()=>location.origin+location.pathname});
@@ -213,22 +215,125 @@ async function loadGarments(){
   if(error){aiMsg('Error al cargar prendas: '+error.message);return}
   garments=data.map(item => ({...item, category: categories.includes(item.category) ? item.category : categoryFor(item) || item.category}));stylist.catalogChanged();fillCategories();fillEntryYears();renderGarments();}
 let renderVersion=0;
-function renderGarments(){const version=++renderVersion;const data=filteredGarments();const gallery=$('garmentGallery');gallery.replaceChildren();$('garmentCount').textContent=garments.filter(item=>wardrobeMatch(item,wardrobeView,closetMetadata)).length;$('count').textContent=data.length+' prenda(s)';renderGarmentCards(data,gallery,version).catch(e=>aiMsg('No se pudieron mostrar las prendas: '+e.message));}
-async function renderGarmentCards(data,gallery,version){
-  for(const g of data){const photo=await garmentPhotoURL(supabase.storage.from('closet-images'),g.image_path).catch(()=>null);if(version!==renderVersion)return;
-    const div=document.createElement('div');div.className='tile';const img=document.createElement('img');if(photo)img.src=photo;else img.hidden=true;img.loading='lazy';img.alt=g.name||'Prenda';
-    const label=document.createElement('p');label.textContent=[g.name,g.category,(g.colors?.length?g.colors.join(', '):g.color),g.pattern,g.style,g.description].filter(Boolean).join(' · ');const purchase=document.createElement('p');purchase.className='garment-purchase';purchase.textContent=detailsLabel(g);const detail=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Ver ficha completa';const info=document.createElement('p');info.textContent=[g.pattern&&'Estampado: '+g.pattern,g.style&&'Estilo: '+g.style,g.description&&'Descripción: '+g.description].filter(Boolean).join(' · ')||'Sin descripción adicional';detail.append(summary,info);const del=document.createElement('button');del.textContent='Eliminar prenda';del.style.background='#9b3030';del.onclick=async()=>{if(!confirm('¿Eliminar esta prenda y su fotografía? Esta acción no se puede deshacer.'))return;del.disabled=true;const {error:dbError,data:deleted}=await supabase.from('garments').delete().eq('id',g.id).select('id');if(dbError||!deleted?.length){aiMsg('No se pudo eliminar: '+(dbError?.message||'Comprueba permisos'));del.disabled=false;return}const results=await Promise.all([g.image_path,...(g.extra_image_paths||[])].map(removeUnusedImage));const storageError=results.find(result=>result.error)?.error;aiMsg(storageError?'Prenda eliminada, pero no se pudo borrar su archivo: '+storageError.message:'Prenda eliminada.');await loadGarments()};const edit=document.createElement('button');edit.textContent='Editar ficha';edit.onclick=()=>{if(div.querySelector('form'))return;const form=document.createElement('form');const fields=[['name','Nombre'],['category','Categoría'],['color','Colores'],['pattern','Estampado'],['style','Estilo'],['entry_year','Año de entrada'],['purchase_price_eur','Precio de compra (€)'],['description','Descripción']];const inputs={};for(const [key,title] of fields){const wrapper=document.createElement('label');wrapper.textContent=title+' ';const input=document.createElement(key==='description'?'textarea':key==='category'?'select':'input');if(key==='category')fillCategorySelect(input,g.category);if(key==='entry_year')input.inputMode='numeric';if(key==='purchase_price_eur')input.inputMode='decimal';input.value=key==='color'?(g.colors?.length?g.colors.join(', '):g.color||''):(g[key]??'');wrapper.append(input);form.append(wrapper,document.createElement('br'));inputs[key]=input}const save=document.createElement('button');save.type='submit';save.textContent='Guardar cambios';const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Cancelar';cancel.onclick=()=>form.remove();descriptionAction(g,form,inputs,save);const editStatus=document.createElement('p');editStatus.setAttribute('role','status');form.append(save,cancel,editStatus);form.onsubmit=async event=>{event.preventDefault();let purchase;try{purchase=purchaseDetails(inputs.entry_year.value,inputs.purchase_price_eur.value)}catch(error){editStatus.textContent=error.message;return}save.disabled=true;const color=inputs.color.value.trim();const changes={...purchase,name:inputs.name.value.trim(),category:inputs.category.value.trim(),color,colors:color.split(',').map(x=>x.trim()).filter(Boolean),pattern:inputs.pattern.value.trim(),style:inputs.style.value.trim(),description:inputs.description.value.trim()};const result=await supabase.from('garments').update(changes).eq('id',g.id).select('id');if(result.error||!result.data?.length){aiMsg('No se pudieron guardar los cambios: '+(result.error?.message||'Comprueba permisos'));save.disabled=false;return}aiMsg('Ficha actualizada.');await loadGarments()};div.append(form)};div.append(img,label,purchase,detail,extraPhotos({garment:g,client:supabase,compress:compressed,refresh:loadGarments,report:aiMsg}));
-    if ([...$('anchorItem').options].some(option => option.value === g.id)) {
-      const combine = document.createElement('button');
-      combine.type = 'button';
-      combine.textContent = 'Combinar esta prenda';
-      combine.onclick = () => stylist.startWith(g);
-      div.append(combine);
+const pendingGarmentPhotos=new WeakMap();
+const garmentObserver=typeof IntersectionObserver==='function'?new IntersectionObserver(entries=>{
+  for(const entry of entries)if(entry.isIntersecting){
+    garmentObserver.unobserve(entry.target);
+    pendingGarmentPhotos.get(entry.target)?.();
+    pendingGarmentPhotos.delete(entry.target);
+  }
+},{rootMargin:'240px'}):null;
+function renderGarments(){
+  renderVersion++;
+  const data=filteredGarments(),gallery=$('garmentGallery');
+  garmentObserver?.disconnect();
+  gallery.replaceChildren();
+  $('garmentCount').textContent=garments.filter(item=>wardrobeMatch(item,wardrobeView,closetMetadata)).length;
+  $('count').textContent=data.length+' prenda(s)';
+  renderGarmentCards(data,gallery,renderVersion);
+}
+function renderGarmentCards(data,gallery,version){
+  const bucket=supabase.storage.from('closet-images');
+  if(!data.length){
+    gallery.textContent=garments.length?'No hay prendas con estos filtros.':'Tu armario empieza con una foto. Añade tu primera prenda.';
+    return;
+  }
+
+  for(const garment of data){
+    if(version!==renderVersion)return;
+    const card=document.createElement('article');card.className='tile garment-card';
+    const record=document.createElement('details');record.className='garment-record';
+    const summary=document.createElement('summary');summary.className='garment-front';
+    const img=document.createElement('img');img.alt='';img.loading='lazy';img.hidden=!garment.image_path;
+    img.onerror=()=>{img.removeAttribute('src');};
+
+    const headline=document.createElement('span');headline.className='garment-front-label';
+    const name=document.createElement('strong');name.textContent=garment.name||garment.category||'Prenda';
+    const color=document.createElement('small');color.textContent=garment.colors?.length?garment.colors.join(', '):garment.color||'';
+    const purchase=document.createElement('small');purchase.className='garment-purchase';purchase.textContent=detailsLabel(garment);
+    headline.append(name,color,purchase);
+    summary.append(img,headline);
+
+    const body=document.createElement('div');body.className='garment-record-body';
+    record.append(summary,body);
+    record.addEventListener('toggle',()=>{
+      if(!record.open||body.childElementCount)return;
+      const info=document.createElement('p');
+      info.textContent=[garment.category,garment.pattern,garment.style,garment.description].filter(Boolean).join(' · ');
+      const actions=document.createElement('div');actions.className='card-actions';
+      const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.textContent='Editar ficha';
+      edit.onclick=()=>editGarment(garment,body);
+      if([...$('anchorItem').options].some(option=>option.value===garment.id)){
+        const combine=document.createElement('button');combine.type='button';combine.textContent='Combinar esta prenda';
+        combine.onclick=()=>stylist.startWith(garment);actions.append(combine);
+      }
+      const remove=document.createElement('button');remove.type='button';remove.className='remove-garment';remove.textContent='Eliminar prenda';
+      remove.onclick=()=>deleteGarment(garment,remove);
+      actions.append(edit,remove);
+      body.append(info,extraPhotos({garment,client:supabase,compress:compressed,refresh:loadGarments,report:aiMsg}),wardrobeFlags(garment),actions);
+    });
+    card.append(record);gallery.append(card);
+    if(!img.hidden){
+      const loadPhoto=()=>garmentPhotoURL(bucket,garment.image_path)
+        .then(url=>{if(card.isConnected&&version===renderVersion)img.src=url;}).catch(()=>{});
+      if(garmentObserver){pendingGarmentPhotos.set(card,loadPhoto);garmentObserver.observe(card);}
+      else loadPhoto();
     }
-    div.append(wardrobeFlags(g),edit,del);gallery.append(div)}
-  if(!data.length)gallery.textContent=garments.length?'No hay prendas con estos filtros.':'Tu armario empieza con una foto. Añade tu primera prenda.';
+  }
 }
 
+async function deleteGarment(garment,button){
+  if(!confirm('¿Eliminar esta prenda y sus fotos? Esta acción no se puede deshacer.'))return;
+  button.disabled=true;
+  const {error,data}=await supabase.from('garments').delete().eq('id',garment.id).select('id');
+  if(error||!data?.length){
+    aiMsg('No se pudo eliminar: '+(error?.message||'Comprueba permisos'));
+    button.disabled=false;return;
+  }
+  const results=await Promise.all([garment.image_path,...(garment.extra_image_paths||[])].map(removeUnusedImage));
+  const storageError=results.find(result=>result.error)?.error;
+  aiMsg(storageError?'Prenda eliminada, pero no se pudo borrar su archivo: '+storageError.message:'Prenda eliminada.');
+  await loadGarments();
+}
+
+function editGarment(garment,body){
+  if(body.querySelector('form'))return;
+  const form=document.createElement('form');
+  const fields=[['name','Nombre'],['category','Categoría'],['color','Colores'],['pattern','Estampado'],
+    ['style','Estilo'],['entry_year','Año de entrada'],['purchase_price_eur','Precio de compra (€)'],['description','Descripción']];
+  const inputs={};
+  for(const [key,title] of fields){
+    const label=document.createElement('label');label.textContent=title;
+    const input=document.createElement(key==='description'?'textarea':key==='category'?'select':'input');
+    if(key==='category')fillCategorySelect(input,garment.category);
+    if(key==='entry_year')input.inputMode='numeric';
+    if(key==='purchase_price_eur')input.inputMode='decimal';
+    input.value=key==='color'?(garment.colors?.length?garment.colors.join(', '):garment.color||''):(garment[key]??'');
+    label.append(input);form.append(label);inputs[key]=input;
+  }
+  const save=document.createElement('button');save.type='submit';save.textContent='Guardar cambios';
+  const cancel=document.createElement('button');cancel.type='button';cancel.className='quiet-button';cancel.textContent='Cancelar';
+  cancel.onclick=()=>form.remove();
+  const status=document.createElement('p');status.setAttribute('role','status');
+  descriptionAction(garment,form,inputs,save);
+  form.append(save,cancel,status);
+  form.onsubmit=async event=>{
+    event.preventDefault();
+    let purchase;
+    try{purchase=purchaseDetails(inputs.entry_year.value,inputs.purchase_price_eur.value);}
+    catch(error){status.textContent=error.message;return;}
+    save.disabled=true;
+    try {
+      const values=Object.fromEntries(['name','category','color','pattern','style','description'].map(key=>[key,inputs[key].value.trim()]));
+      const {data,error}=await supabase.from('garments').update({...purchase,...values,
+        colors:values.color.split(',').map(x=>x.trim()).filter(Boolean)}).eq('id',garment.id).select('id');
+      if(error||!data?.length)throw error||Error('Comprueba permisos.');
+      aiMsg('Ficha actualizada.');await loadGarments();
+    }catch(error){status.textContent='No se pudieron guardar los cambios. '+error.message;save.disabled=false;}
+  };
+  body.append(form);
+  inputs.name.focus();
+}
 
 async function readAll(table,fields){const data=[];for(let offset=0;;){const page=await supabase.from(table).select(fields).order('created_at',{ascending:false}).order('id').range(offset,offset+199);if(page.error)return {data:null,error:page.error};data.push(...page.data);if(!page.data.length)break;offset+=page.data.length;}return {data,error:null}}
 function fillCategories(){const select=$('categoryFilter'),value=select.value;select.replaceChildren(new Option('Todas',''));for(const category of new Set([...categories,...garments.map(g=>g.category).filter(Boolean)]))select.add(new Option(category,category));select.value=value}
@@ -294,7 +399,10 @@ document.querySelectorAll('[data-go]').forEach(button=>button.onclick=()=>{
    renderGarments();
  }
  document.querySelectorAll('.panel').forEach(panel=>panel.hidden=panel.id!==id);
- document.querySelectorAll('nav button').forEach(nav=>nav.setAttribute('aria-pressed',String(nav===button)));
+ document.querySelectorAll('nav [data-go]').forEach(nav=>{
+   const selected=nav.dataset.go===id && (id!=='garmentsPanel' || nav.closest('.mobile-nav') || nav.dataset.wardrobe===wardrobeView);
+   nav.setAttribute('aria-pressed',String(Boolean(selected)));
+ });
  if(id==='todayPanel')today.refresh();
  $(id).scrollIntoView({behavior:'smooth',block:'start'});
 });
