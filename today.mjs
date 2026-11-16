@@ -1,4 +1,4 @@
-import {fold, propose, prepareLookReferences, roleOf} from './combinations.mjs?v=travel1';
+import {fold, palette, propose, prepareLookReferences, replacementChoices, roleOf} from './combinations.mjs?v=travel1';
 import {garmentPhotoURL} from './garment-photos.mjs?v=travel1';
 
 const timeZone = 'Europe/Madrid';
@@ -63,7 +63,7 @@ async function readForecast(day) {
   return {low,high,mode:weatherMode(Number.isFinite(morning)?morning:low,high)};
 }
 
-export function initToday({client,getCatalog,getReferences,readAgenda,saveAgenda,getMetadata}) {
+export function initToday({client,getCatalog,getReferences,readAgenda,saveAgenda,getMetadata,saveLook,isLookSaved}) {
   const $=id=>document.getElementById(id);
   if (!$('todayPanel')) return {refresh(){},reset(){},wardrobe(){}};
   let generation=0, owner=false, renderedDay='', forecast, liveRequest;
@@ -71,9 +71,10 @@ export function initToday({client,getCatalog,getReferences,readAgenda,saveAgenda
   const formatTemp=value=>Math.round(value)+'°';
   const select=$('dailyAgenda');
 
-  function card(title, look, fallback) {
+  function card(title, look, fallback, presentation='', options) {
     const article=document.createElement('article');
     article.className='today-card';
+    if(presentation) article.classList.add(presentation);
     const heading=document.createElement('h2');
     heading.textContent=title;
     article.append(heading);
@@ -81,14 +82,72 @@ export function initToday({client,getCatalog,getReferences,readAgenda,saveAgenda
       const message=document.createElement('p');message.textContent=fallback;article.append(message);return article;
     }
     const pieces=document.createElement('div');pieces.className='look-pieces';
-    for(const item of look.items) {
-      const figure=document.createElement('figure');
-      const image=document.createElement('img');image.loading='lazy';image.alt='';
-      const label=document.createElement('figcaption');label.textContent=item.name||item.category;
-      garmentPhotoURL(bucket,item.image_path).then(url=>{image.src=url}).catch(()=>{image.hidden=true;});
-      figure.append(image,label);pieces.append(figure);
+    const items=[...look.items];
+    const actions=document.createElement('div');actions.className='card-actions';
+    const front=items.findIndex(item=>roleOf(item)==='outer');
+    const order=items.map((_, index)=>index);
+    if(front>0) order.unshift(...order.splice(front,1));
+
+    function paint() {
+      const colorNames={marron:'marrón'};
+      if(presentation==='featured'||presentation==='alternate') {
+        const colors=[...new Set(order.flatMap(index=>palette(items[index])))].slice(0,2);
+        if(colors.length) heading.textContent=colors.map((color,index)=>{
+          const name=colorNames[color]||color;
+          return index?name:name[0].toUpperCase()+name.slice(1);
+        }).join(' y ');
+      }
+      pieces.dataset.count=String(items.length);
+      pieces.replaceChildren(...order.map(index=>{
+        const item=items[index],figure=document.createElement('figure');
+        const image=document.createElement('img');image.loading='lazy';image.alt='';
+        const label=document.createElement('figcaption');label.textContent=item.name||item.category;
+        garmentPhotoURL(bucket,item.image_path).then(url=>{image.src=url}).catch(()=>{image.hidden=true;});
+        figure.append(image,label);return figure;
+      }));
+      actions.replaceChildren();
+      if(!options)return;
+      const picker=document.createElement('details');picker.className='piece-change';
+      const summary=document.createElement('summary');summary.textContent='Cambiar una pieza';
+      const label=document.createElement('label');label.textContent='Alternativas compatibles';
+      const change=document.createElement('select');change.append(new Option('Elige una prenda',''));
+      const alternatives=new Map();
+      for(const [index,item] of items.entries()){
+        const choices=replacementChoices(getCatalog(),items,index,options).slice(0,4);
+        if(!choices.length)continue;
+        const group=document.createElement('optgroup');group.label='En lugar de '+(item.name||item.category);
+        for(const piece of choices){
+          const key=index+':'+piece.id;
+          alternatives.set(key,{index,piece});
+          group.append(new Option(piece.name||piece.category,key));
+        }
+        change.append(group);
+      }
+      if(alternatives.size){
+        label.append(change);picker.append(summary,label);actions.append(picker);
+        change.onchange=()=>{
+          const choice=alternatives.get(change.value);
+          if(!choice)return;
+          items[choice.index]=choice.piece;
+          paint();
+          actions.querySelector('summary')?.focus();
+        };
+      }
+      if(saveLook){
+        const key=items.map(item=>item.id).sort().join('|');
+        const save=document.createElement('button');save.type='button';save.className='secondary';
+        save.disabled=!!isLookSaved?.(key);
+        save.textContent=save.disabled?'Look guardado':'Guardar look';
+        save.onclick=()=>saveLook({key,items:[...items]},save);
+        actions.prepend(save);
+      }
     }
-    article.append(pieces);
+    if(presentation==='featured'||presentation==='alternate'){
+      const occasion=document.createElement('p');occasion.className='eyebrow';occasion.textContent=title;
+      heading.before(occasion);
+    }
+    paint();
+    article.append(pieces,actions);
     return article;
   }
 
@@ -120,13 +179,15 @@ export function initToday({client,getCatalog,getReferences,readAgenda,saveAgenda
     const alternate=daily.length>=2?daily:suggestions(info.date,'daily',mode);
     const ideas=daily.length>=2?daily:[...new Map([...daily,...alternate].map(look=>[look.key,look])).values()];
     const gym=suggestions(info.date,'gym','mild')[0];
-    const results=[card(heading+' · Idea 1',ideas[0],'Completa las fichas para que podamos proponer un look.'),
-      card(heading+' · Idea 2',ideas[1],'Aún faltan prendas compatibles para una segunda propuesta.'),
-      card('Gimnasio',gym,'Añade una parte superior deportiva, un pantalón de entrenamiento y zapatillas cerradas.')];
+    const occasion=info.weekend?'walk':'work';
+    const optionsFor=look=>({occasion:daily.some(candidate=>candidate.key===look?.key)?occasion:'daily',weather:mode});
+    const results=[card(info.weekend?'Para el fin de semana':'Para el trabajo',ideas[0],'Completa las fichas para que podamos proponer un look.','featured',optionsFor(ideas[0])),
+      card('Otra idea para hoy',ideas[1],'Aún faltan prendas compatibles para una segunda propuesta.','alternate',optionsFor(ideas[1])),
+      card('Gimnasio',gym,'Añade una parte superior deportiva, un pantalón de entrenamiento y zapatillas cerradas.','secondary-story')];
     if(agendaOptions[plan]) {
       const [label,occasion,code]=agendaOptions[plan];
       const event=suggestions(info.date,occasion,mode,code)[0];
-      results.push(card(label,event,'Faltan prendas compatibles con este plan.'));
+      results.push(card(label,event,'Faltan prendas compatibles con este plan.','',{occasion,weather:mode,code}));
     }
     $('todayLooks').replaceChildren(...results);
   }
