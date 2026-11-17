@@ -1,17 +1,28 @@
 import {categories} from './closet-catalog.mjs?v=20261112e';
 import {productPhoto} from './garment-photos.mjs?v=purchases1';
+import {purchaseDetails} from './garment-details.mjs?v=entry1';
 
 export function readPurchaseBatch(text) {
   const batch = JSON.parse(text);
   const fromReceipts = batch?.format === 'my-closet-receipt-purchases';
-  if ((!fromReceipts && batch?.format !== 'my-closet-purchases') || !Array.isArray(batch.items) ||
+  const yearUpdate = batch?.format === 'my-closet-purchase-year';
+  if ((!fromReceipts && !yearUpdate && batch?.format !== 'my-closet-purchases') || !Array.isArray(batch.items) ||
       !batch.items.length || batch.items.length > 200) {
     throw Error('Selecciona un lote de compras de MY CLOSET de hasta 200 artículos.');
   }
+  const year = yearUpdate ? purchaseDetails(batch.year, null).entry_year : null;
+  if (yearUpdate && !year) throw Error('Indica el año de entrada de las fichas.');
   const items = new Map();
   for (const item of batch.items) {
     const {brand, ref, name, category, colors, description, photo} = item || {};
     const validText = (value, max) => typeof value === 'string' && value.trim() && value.length <= max;
+    if (yearUpdate) {
+      if (typeof ref !== 'string' || !/^recibo-[a-f0-9]{24}$/.test(ref) || !validText(name, 160)) {
+        throw Error('Falta el nombre o la referencia de una ficha.');
+      }
+      items.set(ref, {ref, name, year});
+      continue;
+    }
     if (!validText(brand, 80) || typeof ref !== 'string' ||
         !validText(name, 160) || !categories.includes(category) || !Array.isArray(colors) ||
         colors.length > 8 || !colors.every(color => validText(color, 40)) ||
@@ -42,11 +53,15 @@ export function readPurchaseBatch(text) {
   return [...items.values()];
 }
 
+function receiptGarment(item, catalog) {
+  return catalog.find(garment => (garment.image_path || '').endsWith('/' + item.ref + '.jpg'));
+}
+
 function alreadySaved(item, catalog) {
   if (item.fromReceipts) {
-    return catalog.some(garment => (garment.image_path || '').endsWith('/' + item.ref + '.jpg') ||
-      (garment.name === item.name && garment.category === item.category &&
-        (garment.description || '').includes('Talla: ' + item.size + '.')));
+    return Boolean(receiptGarment(item, catalog)) ||
+      catalog.some(garment => garment.name === item.name && garment.category === item.category &&
+        (garment.description || '').includes('Talla: ' + item.size + '.'));
   }
   const ref = new RegExp('\\b' + item.ref + '\\b');
   return catalog.some(garment => garment.image_path === item.photo ||
@@ -69,6 +84,7 @@ export function initPurchaseBatch({client, getCatalog, refresh}) {
   const list = document.getElementById('purchaseReview');
   const status = document.getElementById('purchaseStatus');
   const save = document.getElementById('savePurchases');
+  const saveLabel = save.textContent;
   const instructions = document.querySelector('#purchaseUpload > p');
   if (instructions) instructions.textContent = 'Carga un lote preparado a partir de pedidos, tickets o capturas. Revisa las prendas antes de guardarlas.';
   let selected = [];
@@ -81,7 +97,9 @@ export function initPurchaseBatch({client, getCatalog, refresh}) {
     selected = [];
     list.replaceChildren();
     status.textContent = '';
+    save.textContent = saveLabel;
     save.disabled = true;
+    save.textContent = saveLabel;
   }
 
   file.onchange = async () => {
@@ -97,19 +115,21 @@ export function initPurchaseBatch({client, getCatalog, refresh}) {
       const batch = readPurchaseBatch(await source.text());
       if (current !== revision) return;
       const catalog = getCatalog();
+      if (batch[0].year) save.textContent = 'Actualizar año de entrada';
       selected = batch.map(item => {
         const row = document.createElement('li');
         const label = document.createElement('label');
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.disabled = alreadySaved(item, catalog);
+        const garment = item.year ? receiptGarment(item, catalog) : null;
+        checkbox.disabled = item.year ? !garment || garment.entry_year === item.year : alreadySaved(item, catalog);
         checkbox.checked = !checkbox.disabled;
         checkbox.onchange = () => { save.disabled = !selected.some(entry => entry.checkbox.checked); };
-        const detail = item.fromReceipts
+        const detail = item.year ? 'Año de entrada ' + item.year : item.fromReceipts
           ? item.size + (item.price === null ? '' : ' · ' + item.price.toFixed(2).replace('.', ',') + ' €')
           : item.brand + ' · ' + item.ref;
-        label.append(checkbox, ' ' + item.name + ' · ' + detail +
-          (checkbox.disabled ? ' · Ya en el armario' : ''));
+        const reason = item.year ? (garment ? 'Año ya guardado' : 'Ficha ausente') : 'Ya en el armario';
+        label.append(checkbox, ' ' + item.name + ' · ' + detail + (checkbox.disabled ? ' · ' + reason : ''));
         row.append(label);
         list.append(row);
         return {item, checkbox};
@@ -132,6 +152,21 @@ export function initPurchaseBatch({client, getCatalog, refresh}) {
     try {
       const {data:{user}, error} = await client.auth.getUser();
       if (error || !user) throw error || Error('Inicia sesión para guardar las compras.');
+      if (items[0].year) {
+        const catalog = getCatalog();
+        const ids = items.map(item => receiptGarment(item, catalog)?.id).filter(Boolean);
+        let updated = 0;
+        if (ids.length) {
+          const result = await client.from('garments').update({entry_year:items[0].year})
+            .eq('user_id', user.id).in('id', ids).select('id');
+          if (result.error) throw result.error;
+          updated = result.data.length;
+        }
+        reset();
+        status.textContent = updated + ' fichas actualizadas.';
+        await refresh();
+        return;
+      }
       const pending = items.filter(item => !alreadySaved(item, getCatalog()));
       const rows = [];
       const bucket = client.storage.from('closet-images');
