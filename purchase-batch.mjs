@@ -3,7 +3,8 @@ import {productPhoto} from './garment-photos.mjs?v=purchases1';
 
 export function readPurchaseBatch(text) {
   const batch = JSON.parse(text);
-  if (batch?.format !== 'my-closet-purchases' || !Array.isArray(batch.items) ||
+  const fromReceipts = batch?.format === 'my-closet-receipt-purchases';
+  if ((!fromReceipts && batch?.format !== 'my-closet-purchases') || !Array.isArray(batch.items) ||
       !batch.items.length || batch.items.length > 200) {
     throw Error('Selecciona un lote de compras de MY CLOSET de hasta 200 artículos.');
   }
@@ -11,11 +12,25 @@ export function readPurchaseBatch(text) {
   for (const item of batch.items) {
     const {brand, ref, name, category, colors, description, photo} = item || {};
     const validText = (value, max) => typeof value === 'string' && value.trim() && value.length <= max;
-    if (!['Zara', 'Pull&Bear'].includes(brand) || typeof ref !== 'string' || !/^\d{11}$/.test(ref) ||
+    if (!validText(brand, 80) || typeof ref !== 'string' ||
         !validText(name, 160) || !categories.includes(category) || !Array.isArray(colors) ||
         colors.length > 8 || !colors.every(color => validText(color, 40)) ||
-        !validText(description, 1000) || typeof photo !== 'string' || !productPhoto(photo)) {
+        !validText(description, 1000) || typeof photo !== 'string') {
       throw Error('Hay una ficha incompleta o con un formato incorrecto.');
+    }
+    if (fromReceipts) {
+      const {size, price, style} = item;
+      if (!/^recibo-[a-f0-9]{24}$/.test(ref) || !validText(size, 60) ||
+          (price !== null && (typeof price !== 'number' || !Number.isFinite(price) || price < 0 || price > 1000000)) ||
+          (style !== undefined && !validText(style, 60)) ||
+          photo.length > 250000 || !/^\/9j\/[a-z0-9+/]+={0,2}$/i.test(photo)) {
+        throw Error('Revisa la talla, el precio o la foto de ' + name + '.');
+      }
+      items.set(brand + ':' + ref, {brand, ref, name, category, colors, description, photo, size, price, style, fromReceipts});
+      continue;
+    }
+    if (!['Zara', 'Pull&Bear'].includes(brand) || !/^\d{11}$/.test(ref) || !productPhoto(photo)) {
+      throw Error('La marca, la referencia o la foto de ' + name + ' no coincide con el recibo.');
     }
     const host = brand === 'Zara' ? 'static.zara.net' : 'static.pullandbear.net';
     const url = new URL(photo);
@@ -28,6 +43,11 @@ export function readPurchaseBatch(text) {
 }
 
 function alreadySaved(item, catalog) {
+  if (item.fromReceipts) {
+    return catalog.some(garment => (garment.image_path || '').endsWith('/' + item.ref + '.jpg') ||
+      (garment.name === item.name && garment.category === item.category &&
+        (garment.description || '').includes('Talla: ' + item.size + '.')));
+  }
   const ref = new RegExp('\\b' + item.ref + '\\b');
   return catalog.some(garment => garment.image_path === item.photo ||
     (productPhoto(garment.image_path) && ref.test(garment.image_path)) ||
@@ -49,6 +69,8 @@ export function initPurchaseBatch({client, getCatalog, refresh}) {
   const list = document.getElementById('purchaseReview');
   const status = document.getElementById('purchaseStatus');
   const save = document.getElementById('savePurchases');
+  const instructions = document.querySelector('#purchaseUpload > p');
+  if (instructions) instructions.textContent = 'Carga un lote preparado a partir de pedidos, tickets o capturas. Revisa las prendas antes de guardarlas.';
   let selected = [];
   let saving = false;
   let revision = 0;
@@ -71,7 +93,7 @@ export function initPurchaseBatch({client, getCatalog, refresh}) {
     status.textContent = '';
     if (!source) return;
     try {
-      if (source.size > 1_000_000) throw Error('El lote supera 1 MB.');
+      if (source.size > 8_000_000) throw Error('El lote supera 8 MB.');
       const batch = readPurchaseBatch(await source.text());
       if (current !== revision) return;
       const catalog = getCatalog();
@@ -83,7 +105,10 @@ export function initPurchaseBatch({client, getCatalog, refresh}) {
         checkbox.disabled = alreadySaved(item, catalog);
         checkbox.checked = !checkbox.disabled;
         checkbox.onchange = () => { save.disabled = !selected.some(entry => entry.checkbox.checked); };
-        label.append(checkbox, ' ' + item.name + ' · ' + item.brand + ' · ' + item.ref +
+        const detail = item.fromReceipts
+          ? item.size + (item.price === null ? '' : ' · ' + item.price.toFixed(2).replace('.', ',') + ' €')
+          : item.brand + ' · ' + item.ref;
+        label.append(checkbox, ' ' + item.name + ' · ' + detail +
           (checkbox.disabled ? ' · Ya en el armario' : ''));
         row.append(label);
         list.append(row);
@@ -108,19 +133,34 @@ export function initPurchaseBatch({client, getCatalog, refresh}) {
       const {data:{user}, error} = await client.auth.getUser();
       if (error || !user) throw error || Error('Inicia sesión para guardar las compras.');
       const pending = items.filter(item => !alreadySaved(item, getCatalog()));
-      const rows = await Promise.all(pending.map(async item => ({
-        id: await purchaseId(user.id, item),
-        user_id: user.id,
-        name: item.name.trim(),
-        category: item.category,
-        color: item.colors.join(', '),
-        colors: item.colors,
-        description: item.description.trim() + ' ' + item.brand + ' · Ref. ' + item.ref + '.',
-        image_path: item.photo
-      })));
+      const rows = [];
+      const bucket = client.storage.from('closet-images');
+      for (const item of pending) {
+        const row = {
+          id: await purchaseId(user.id, item),
+          user_id: user.id,
+          name: item.name.trim(),
+          category: item.category,
+          color: item.colors.join(', '),
+          colors: item.colors,
+          description: item.description.trim() + ' ' + item.brand + ' · Ref. ' + item.ref + '.',
+          image_path: item.photo
+        };
+        if (item.fromReceipts) {
+          status.textContent = 'Subiendo foto ' + (rows.length + 1) + ' de ' + pending.length + '…';
+          row.image_path = user.id + '/garments/' + item.ref + '.jpg';
+          row.purchase_price_eur = item.price;
+          row.style = item.style || null;
+          row.description = item.description.trim() + ' Talla: ' + item.size + '.';
+          const bytes = Uint8Array.from(atob(item.photo), character => character.charCodeAt(0));
+          const {error: uploadError} = await bucket.upload(row.image_path, bytes, {contentType:'image/jpeg'});
+          if (uploadError && String(uploadError.statusCode) !== '409' && uploadError.error !== 'Duplicate') throw uploadError;
+        }
+        rows.push(row);
+      }
       let added = 0;
       if (rows.length) {
-        const result = await client.from('garments').upsert(rows, {onConflict:'id', ignoreDuplicates:true}).select('id');
+        const result = await client.from('garments').upsert(rows, {onConflict:'id', ignoreDuplicates:true, defaultToNull:false}).select('id');
         if (result.error) throw result.error;
         added = result.data.length;
       }
