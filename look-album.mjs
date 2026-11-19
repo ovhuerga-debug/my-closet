@@ -1,6 +1,6 @@
 import {frameValues, seasonFor, seasonNames} from './photo-dates.mjs?v=20261112';
 
-export function createAlbum({client, readAll, removeImage, describeLook, report}) {
+export function createAlbum({client, readAll, removeImage, describeLook, report, extractGarment}) {
   const $ = id => document.getElementById(id);
   const bucket = client.storage.from('closet-images');
   const fields = 'id,image_path,created_at,captured_on,frame,look_description';
@@ -106,6 +106,7 @@ export function createAlbum({client, readAll, removeImage, describeLook, report}
       actions.append(button('Ajustar', () => edit(row)));
       if (season(row) !== 'generated') {
         actions.append(button(row.look_description ? 'Ver descripción' : '✦ Analizar look', () => openDescription(row)));
+        if (extractGarment) actions.append(button('Sacar prenda', () => extractGarment(row)));
       }
       const remove = button('Eliminar', async () => {
         if (!confirm('¿Eliminar esta foto de tu álbum?')) return;
