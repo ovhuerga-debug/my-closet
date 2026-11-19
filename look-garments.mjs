@@ -2,13 +2,21 @@ import {categoryFor} from './closet-catalog.mjs?v=20261112e';
 import {garmentPhotoURL} from './garment-photos.mjs?v=travel1';
 
 const fold = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+function colorFamilies(value) {
+  const text=fold(value);
+  return ['beige|crudo|crema|marfil|blanco roto','blanco','negro|antracita','azul|celeste|marino','verde|caqui|oliva','marron|camel|miel|tostado','rosa','rojo|granate|burdeos','gris','amarillo|mostaza','naranja','morado|violeta']
+    .filter(pattern=>new RegExp(pattern).test(text));
+}
 export function similarGarments(result, catalog) {
   const category = categoryFor({name:result.nombre, category:result.categoria});
   const colors = (Array.isArray(result.colores) ? result.colores : [result.colores]).filter(Boolean).map(fold);
   const words = fold([result.nombre,result.descripcion,result.estampado].join(' ')).split(/[^a-z0-9]+/).filter(word=>word.length>3);
+  const families=colorFamilies(colors.join(' '));
   return catalog.filter(item=>categoryFor(item)===category).map(item=>{
     const text = fold([item.name,item.color,item.description,item.pattern].join(' '));
-    const score = colors.filter(color=>text.includes(color)).length * 3 + new Set(words.filter(word=>text.includes(word))).size;
+    const itemFamilies=colorFamilies([item.color,...(item.colors||[])].join(' '));
+    if(families.length&&!families.some(color=>itemFamilies.includes(color)))return {item,score:0};
+    const score = colors.filter(color=>text.includes(color)).length * 8 + new Set(words.filter(word=>text.includes(word))).size;
     return {item,score};
   }).filter(({score})=>score>0).sort((a,b)=>b.score-a.score).slice(0,4).map(({item})=>item);
 }
