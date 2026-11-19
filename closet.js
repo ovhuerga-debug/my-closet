@@ -2,8 +2,9 @@ import {purchaseDetails, detailsLabel, sortByPrice} from './garment-details.mjs?
 import {initToday, wardrobeMatch} from './today.mjs?v=cobalto1';
 import {descriptionFromViews, extraPhotos, garmentPhotoURL, productPhoto} from './garment-photos.mjs?v=travel1';
 import {initPurchaseBatch} from './purchase-batch.mjs?v=purchases2';
-import {createGarmentBatch} from './garment-batch.mjs?v=entry1';
-import {createAlbum} from './look-album.mjs?v=20261113d';
+import {createGarmentBatch} from './garment-batch.mjs?v=fromlook1';
+import {createAlbum} from './look-album.mjs?v=fromlook1';
+import {createLookGarments} from './look-garments.mjs?v=fromlook1';
 import {captureDate} from './photo-dates.mjs?v=20261112';
 import {categories, categoryFor, fillCategorySelect} from './closet-catalog.mjs?v=20261112e';
 import {initPasswordAccess} from './password-access.mjs';
@@ -12,7 +13,7 @@ import {initStylist} from './stylist.mjs?v=cobalto1';
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2';
 const supabase=createClient('https://tqphpcoqnlhzlxvzilxy.supabase.co','sb_publishable_xX9_VMIhz3C_JLTmhtWoPw_4KpWD73b',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $=id=>document.getElementById(id);let busy=false, stop=false, retryFiles=[], garments=[], stateRunning=false;
-const album = createAlbum({client: supabase, readAll, removeImage: removeUnusedImage, describeLook, report: message => { $('globalStatus').textContent = message; }});
+const album = createAlbum({client: supabase, readAll, removeImage: removeUnusedImage, describeLook, extractGarment:row=>lookGarments.open(row), report: message => { $('globalStatus').textContent = message; }});
 const stylist=initStylist({client:supabase,getCatalog:()=>garments,getLookReferences:album.getReferences,onSaved:load});
 let wardrobeView='all', closetMetadata={};
 let metadataQueue=Promise.resolve();
@@ -31,7 +32,7 @@ const today=initToday({client:supabase,getCatalog:()=>garments,getReferences:alb
   isLookSaved:stylist.isLookSaved,
   saveLook:(look,button)=>stylist.saveLook(look,button,{report:message=>{ $('globalStatus').textContent=message; },rerender:false})});
 function msg(s){$('status').textContent=s;$('globalStatus').textContent=s}
-async function state(){if(stateRunning||busy)return;stateRunning=true;try{const {data:{user},error}=await supabase.auth.getUser();if(error)console.warn(error.message);$('login').classList.toggle('hidden',!!user);$('private').classList.toggle('hidden',!user);if(user){closetMetadata=user.user_metadata||{};$('who').textContent=user.email||user.id;await Promise.all([load(),loadGarments()]);today.refresh();today.wardrobe(wardrobeView)}else{garments=[];closetMetadata={};today.reset();garmentBatch.reset();purchaseBatch.reset();album.reset();stylist.reset();$('garmentGallery').replaceChildren()}}catch(e){$('globalStatus').textContent='No se pudo conectar: '+e.message}finally{stateRunning=false}}
+async function state(){if(stateRunning||busy)return;stateRunning=true;try{const {data:{user},error}=await supabase.auth.getUser();if(error)console.warn(error.message);$('login').classList.toggle('hidden',!!user);$('private').classList.toggle('hidden',!user);if(user){closetMetadata=user.user_metadata||{};$('who').textContent=user.email||user.id;await Promise.all([load(),loadGarments()]);today.refresh();today.wardrobe(wardrobeView)}else{garments=[];closetMetadata={};today.reset();lookGarments.reset();garmentBatch.reset();purchaseBatch.reset();album.reset();stylist.reset();$('garmentGallery').replaceChildren()}}catch(e){$('globalStatus').textContent='No se pudo conectar: '+e.message}finally{stateRunning=false}}
 const passwordAccess=initPasswordAccess({client:supabase,onSignedIn:state,redirectTo:()=>location.origin+location.pathname});
 $('logout').onclick=async()=>{if(garmentBatch.isWorking()||purchaseBatch.isSaving()){aiMsg('Espera a que termine el lote de prendas.');return}try{const {error}=await supabase.auth.signOut({scope:'local'});if(error)throw error;passwordAccess.clear();$('passwordStatus').textContent='';await state()}catch(error){$('globalStatus').textContent='No se pudo cerrar la sesión: '+error.message}};
 $('refresh').onclick = load;
@@ -207,6 +208,16 @@ function descriptionAction(garment, form, inputs, save) {
   form.append(button,status);
 }
 const garmentBatch = createGarmentBatch({client: supabase, compress: compressed, analyzePhoto: analyzeGarmentPhoto, onSaved: loadGarments});
+const lookGarments = createLookGarments({
+  client:supabase, getCatalog:()=>garments, analyzePhoto:analyzeGarmentPhoto,
+  prepare(file,analysis,outfit) {
+    garmentBatch.addFromLook(file,analysis,outfit);
+    const nav=[...document.querySelectorAll('[data-go="garmentsPanel"]')].find(button=>button.dataset.wardrobe==='all');
+    nav.click();
+    $('garmentUpload').open=true;
+    $('aiForm').scrollIntoView({block:'start'});
+  }
+});
 const purchaseBatch = initPurchaseBatch({client:supabase, getCatalog:() => garments, refresh:loadGarments});
 $('refreshGarments').onclick=loadGarments;
 async function loadGarments(){
