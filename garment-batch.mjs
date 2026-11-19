@@ -281,7 +281,7 @@ export function createGarmentBatch({client, compress, analyzePhoto, onSaved}) {
         pattern: String(analysis.estampado || ''),
         style: String(analysis.estilo || ''),
         description: String(analysis.descripcion || '') + '\nFoto recortada del look' +
-          (outfit.captured_on ? ' del ' + outfit.captured_on : '') + ' · Origen ' + outfit.id + '.'
+          (outfit.captured_on ? ' del ' + outfit.captured_on : '') + '.'
       }};
     queue.push(item);
     showActive(item);
