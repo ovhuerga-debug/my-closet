@@ -271,5 +271,21 @@ export function createGarmentBatch({client, compress, analyzePhoto, onSaved}) {
     return saveItems([active]);
   };
   renderQueue();
-  return {reset, isWorking: () => working};
+  function addFromLook(file, analysis, outfit) {
+    if (working) throw Error('Espera a que termine el lote de prendas.');
+    const item = {id: crypto.randomUUID(), file, extra: [], year: '', price: '', analyzed: true, saved: false, error: '',
+      draft: {
+        name: String(analysis.nombre || ''),
+        category: categoryFor({name:analysis.nombre, category:analysis.categoria}),
+        color: Array.isArray(analysis.colores) ? analysis.colores.join(', ') : String(analysis.colores || ''),
+        pattern: String(analysis.estampado || ''),
+        style: String(analysis.estilo || ''),
+        description: String(analysis.descripcion || '') + '\nFoto recortada del look' +
+          (outfit.captured_on ? ' del ' + outfit.captured_on : '') + ' · Origen ' + outfit.id + '.'
+      }};
+    queue.push(item);
+    showActive(item);
+    report('Comprueba el nombre, la categoría y las coincidencias antes de guardar esta prenda.');
+  }
+  return {reset, isWorking: () => working, addFromLook};
 }
